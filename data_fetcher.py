@@ -5,6 +5,8 @@ import json
 import os
 import datetime
 import concurrent.futures
+import requests
+from bs4 import BeautifulSoup
 
 # 精選上市櫃前 150 大流動性佳大中型股
 UNIVERSE = [
@@ -35,6 +37,33 @@ def get_swing_highs(df, window=5):
         if all(current_high > df['High'].iloc[i-window:i]) and all(current_high >= df['High'].iloc[i+1:i+window+1]):
             swing_highs.append(i)
     return swing_highs
+
+def get_tw_stock_info(ticker):
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    try:
+        res = requests.get(f'https://tw.stock.yahoo.com/quote/{ticker}/profile', headers=headers, timeout=5)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        strings = list(soup.stripped_strings)
+        
+        name, sector, desc = '未知', '未知', '無'
+        try:
+            idx = strings.index('公司名稱')
+            name = strings[idx+1]
+        except: pass
+        
+        try:
+            idx = strings.index('產業類別')
+            sector = strings[idx+1]
+        except: pass
+        
+        try:
+            idx = strings.index('主要經營業務')
+            desc = strings[idx+1]
+            if desc == '配股資訊': desc = '無'
+        except: pass
+        return {'company_name': name, 'sector': sector, 'description': desc}
+    except Exception:
+        return {'company_name': '未知', 'sector': '未知', 'description': '無'}
 
 def calculate_smc_and_vegas_df(ticker, df):
     if df.empty:
@@ -253,6 +282,13 @@ def run_analysis():
                     break
                     
         final_list = fallback_list[:3]
+
+    # 追加中文公司資料 (只針對前幾名)
+    for r in final_list:
+        info = get_tw_stock_info(r['ticker'])
+        r['company_name'] = info['company_name']
+        r['sector'] = info['sector']
+        r['description'] = info['description']
 
     os.makedirs('data', exist_ok=True)
     with open('data/signals.json', 'w') as f:
