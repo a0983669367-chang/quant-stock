@@ -141,39 +141,40 @@ with col1:
         desc = stock.get('description', '')
         
         html = f"""
-        <div class="stock-card">
-            <h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <span style="color:#60a5fa;">{ticker}</span>
-                <span>{c_name}</span>
-                {f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''}
-            </h2>
-            <div class="metric-row">
-                <div class="metric">
-                    <span class="metric-label">建議進場區間</span>
-                    <span class="metric-value buy-zone">{entry}</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">潛在報酬空間</span>
-                    <span class="metric-value potential">+{upside:.1f}%</span>
-                </div>
-            </div>
-            <div class="metric-row">
-                <div class="metric">
-                    <span class="metric-label">停利目標(BSL)</span>
-                    <span class="metric-value target-price">{target_str}</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">防守停損(OB Low)</span>
-                    <span class="metric-value stop-loss">{sl_str}</span>
-                </div>
-            </div>
-            {f'''
-            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div>
-                <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div>
-            </div>
-            ''' if desc and desc != '無' else ''}
-        """
+<div class="stock-card">
+    <h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;">
+        <span style="color:#60a5fa;">{ticker}</span>
+        <span>{c_name}</span>
+        {f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''}
+    </h2>
+    <div class="metric-row">
+        <div class="metric">
+            <span class="metric-label">建議進場區間</span>
+            <span class="metric-value buy-zone">{entry}</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">潛在報酬空間</span>
+            <span class="metric-value potential">+{upside:.1f}%</span>
+        </div>
+    </div>
+    <div class="metric-row">
+        <div class="metric">
+            <span class="metric-label">停利目標(BSL)</span>
+            <span class="metric-value target-price">{target_str}</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">防守停損(OB Low)</span>
+            <span class="metric-value stop-loss">{sl_str}</span>
+        </div>
+    </div>
+    {f'''
+    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div>
+        <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div>
+    </div>
+    ''' if desc and desc != '無' else ''}
+</div>
+"""
         
         if stock.get('is_fallback') and stock.get('fallback_reason'):
             reason = stock['fallback_reason']
