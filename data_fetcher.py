@@ -240,7 +240,10 @@ def run_analysis():
                     
                 res['upside_pct'] = upside_pct
                 res['ema_strength'] = ema_strength
-                results.append(res)
+                
+                # 過濾掉潛在報酬率小於 10% 的個股
+                if upside_pct >= 0.1:
+                    results.append(res)
         except Exception as e:
             # print(f"Error {ticker}: {e}")
             continue
