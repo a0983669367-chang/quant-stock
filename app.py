@@ -90,6 +90,7 @@ if signals is None:
     if st.button("🚀 啟動全市場初始掃描 (預計 20-30 秒)"):
         with st.spinner("正在使用 yfinance 多執行緒並行掃描前 150 大台股歷史資料..."):
             data_fetcher.run_analysis()
+            st.cache_data.clear()
             st.success("分析完成！")
             st.rerun()
     st.stop()
