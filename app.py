@@ -4,7 +4,6 @@ import os
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-from apscheduler.schedulers.background import BackgroundScheduler
 import data_fetcher
 import threading
 
@@ -66,18 +65,6 @@ st.markdown("""
     .potential { color: #facc15; }
 </style>
 """, unsafe_allow_html=True)
-
-# -----------------------------------------------------
-# 背景排程：每天早上 08:30 觸發
-# -----------------------------------------------------
-@st.cache_resource
-def init_scheduler():
-    scheduler = BackgroundScheduler(timezone="Asia/Taipei")
-    scheduler.add_job(data_fetcher.run_analysis, 'cron', hour=8, minute=30)
-    scheduler.start()
-    return scheduler
-
-init_scheduler()
 
 # -----------------------------------------------------
 # UI 區塊設計 - 解決首次載入白畫面
