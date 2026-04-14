@@ -36,15 +36,9 @@ def get_swing_highs(df, window=5):
             swing_highs.append(i)
     return swing_highs
 
-def calculate_smc_and_vegas(ticker):
-    # 下載歷史資料 (Vegas 至少需要 676 天，因此選 3y)
-    df = yf.download(ticker, period='3y', progress=False)
+def calculate_smc_and_vegas_df(ticker, df):
     if df.empty:
         return None
-        
-    # 最新版本的 yfinance 可能會回傳 MultiIndex columns
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
 
     # 確保資料有 High, Low, Close
     if 'Close' not in df.columns:
@@ -182,18 +176,28 @@ def run_analysis():
     print(f"[{datetime.datetime.now()}] Running SMC & Vegas Analysis on {len(UNIVERSE)} symbols...")
     results = []
     
-    def process_ticker(ticker):
+    # 統一透過原生 yfinance 批次下載，避免自己使用 ThreadPoolExecutor 造成的 yfinance 內部資料混淆 (Race Condition) Bug
+    print(f"[{datetime.datetime.now()}] 正在批次下載市場行情...")
+    df_all = yf.download(UNIVERSE, period='3y', progress=False, group_by='ticker', threads=True)
+    
+    for ticker in UNIVERSE:
         try:
-            return calculate_smc_and_vegas(ticker)
-        except Exception:
-            return None
-
-    # 並行處理大幅增加獲取速度
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        future_to_ticker = {executor.submit(process_ticker, t): t for t in UNIVERSE}
-        for future in concurrent.futures.as_completed(future_to_ticker):
-            res = future.result()
-            if res and res.get('trigger'):
+            # yfinance 批次下載的結構為 MultiIndex [('2330.TW', 'Close'), ...]
+            if len(UNIVERSE) > 1:
+                # 確保不崩潰如果 ticker 沒成功抓到
+                if ticker not in df_all.columns.levels[0]:
+                    continue
+                df = df_all[ticker].copy()
+            else:
+                df = df_all.copy()
+            
+            # yf.download 若部分標的下市可能只有單一 level，這裡確保安全取出
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+                
+            res = calculate_smc_and_vegas_df(ticker, df)
+            
+            if res:
                 target = res.get('target1')
                 close_price = res.get('latest_close')
                 upside_pct = 0
@@ -208,14 +212,51 @@ def run_analysis():
                 res['upside_pct'] = upside_pct
                 res['ema_strength'] = ema_strength
                 results.append(res)
+        except Exception as e:
+            # print(f"Error {ticker}: {e}")
+            continue
                 
-    # 根據預期報酬與趨勢強度挑選最強的前五名
-    sorted_results = sorted(results, key=lambda x: (x.get('upside_pct', 0), x.get('ema_strength', 0)), reverse=True)
-    top_5 = sorted_results[:5]
+    # 過濾出正宗觸發股
+    triggered = [r for r in results if r.get('trigger')]
+    
+    final_list = []
+    if len(triggered) > 0:
+        # 有觸發股，依照預期報酬與趨勢強度挑選最強的前五名
+        sorted_results = sorted(triggered, key=lambda x: (x.get('upside_pct', 0), x.get('ema_strength', 0)), reverse=True)
+        final_list = sorted_results[:5]
+    else:
+        # 秋後算帳，沒有觸發股，啟動 Fallback 機制
+        fallback_list = []
+        
+        # 情境 1：SMC 已成型但在等待回測
+        smc_wait_list = [r for r in results if r.get('is_vegas_bullish') and r.get('ob') and r.get('fvg') and not r.get('trigger')]
+        
+        if len(smc_wait_list) > 0:
+            # 以預期報酬排序
+            smc_wait_list = sorted(smc_wait_list, key=lambda x: x.get('upside_pct', 0), reverse=True)
+            for r in smc_wait_list:
+                r['is_fallback'] = True
+                r['fallback_reason'] = "SMC 買盤結構已佈局完成，長線做多確立。惟目前股價尚未跌入最佳買盤區，強烈建議列為優先伏擊觀察股，待拉回碰觸買區即為飆股候選。"
+                fallback_list.append(r)
+                
+        # 如果情境 1 挑不滿 3 檔，用情境 2 補滿
+        if len(fallback_list) < 3:
+            # 尋找 Vegas 強勢動能股
+            strong_trend_list = [r for r in results if r.get('is_vegas_bullish') and r.get('ticker') not in [f.get('ticker') for f in fallback_list]]
+            strong_trend_list = sorted(strong_trend_list, key=lambda x: x.get('ema_strength', 0), reverse=True)
+            
+            for r in strong_trend_list:
+                r['is_fallback'] = True
+                r['fallback_reason'] = "目前市場無完美 SMC 買盤成型，此標的為當前 Vegas 均線多頭爆發力最強之個股，屬極強動能觀察名單。"
+                fallback_list.append(r)
+                if len(fallback_list) >= 3:
+                    break
+                    
+        final_list = fallback_list[:3]
 
     os.makedirs('data', exist_ok=True)
     with open('data/signals.json', 'w') as f:
-        json.dump(top_5, f, indent=4)
+        json.dump(final_list, f, indent=4)
         
     print(f"[{datetime.datetime.now()}] Analysis complete. Saved Top 5 to data/signals.json")
 

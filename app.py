@@ -114,15 +114,20 @@ else:
             st.cache_data.clear()
             st.rerun()
 
-# 篩選今日觸發條件的股票
-triggered_stocks = [s for s in signals if s.get('trigger')]
+# 判斷是否為 Fallback
+is_fallback_mode = False
+if signals and signals[0].get('is_fallback'):
+    is_fallback_mode = True
 
-if not triggered_stocks:
-    st.info("今日無任何標的觸發完美回測信號。")
-    display_stocks = signals
+if is_fallback_mode:
+    st.warning(f"⚠️ 今日無完美觸發進場標的，系統啟動備用機制，推薦 {len(signals)} 檔【潛力觀察名單】供參：")
 else:
-    st.success(f"🔥 今日掃描完成！為您精選出 {len(triggered_stocks)} 檔最強勢潛力標的！")
-    display_stocks = triggered_stocks
+    if not signals:
+        st.info("今日無任何標的觸發信號。")
+    else:
+        st.success(f"🔥 今日掃描完成！為您精選出 {len(signals)} 檔最強勢潛力標的！")
+
+display_stocks = signals
 
 # 頁面排版
 col1, col2 = st.columns([1, 2])
@@ -166,8 +171,19 @@ with col1:
                     <span class="metric-value stop-loss">{sl_str}</span>
                 </div>
             </div>
-        </div>
         """
+        
+        if stock.get('is_fallback') and stock.get('fallback_reason'):
+            reason = stock['fallback_reason']
+            html += f"""
+<div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px;">
+    <span style="color: #fbbf24; font-size: 13px; font-weight: 600;">💡 推薦原因</span>
+    <div style="color: #d1d5db; font-size: 13px; margin-top: 4px; line-height: 1.5;">{reason}</div>
+</div>
+"""
+            
+        html += "</div>"
+        
         st.markdown(html, unsafe_allow_html=True)
         # 取代危險的 JS onclick，使用完美原生的 Streamlit button
         if st.button(f"📊 載入 {ticker} 走勢圖", key=f"btn_{ticker}", use_container_width=True):
