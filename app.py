@@ -136,54 +136,17 @@ with col1:
         sl_str = f"NT$ {sl:.2f}" if sl else "-"
         target_str = f"NT$ {target:.2f}" if target else "-"
         
-        c_name = stock.get('company_name', '')
-        sector = stock.get('sector', '')
-        desc = stock.get('description', '')
+        c_name = stock.get('company_name', '').replace('\n', ' ').replace('\r', '')
+        sector = stock.get('sector', '').replace('\n', ' ').replace('\r', '')
+        desc = stock.get('description', '').replace('\n', ' ').replace('\r', '')
         
-        html = f"""
-<div class="stock-card">
-    <h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;">
-        <span style="color:#60a5fa;">{ticker}</span>
-        <span>{c_name}</span>
-        {f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''}
-    </h2>
-    <div class="metric-row">
-        <div class="metric">
-            <span class="metric-label">建議進場區間</span>
-            <span class="metric-value buy-zone">{entry}</span>
-        </div>
-        <div class="metric">
-            <span class="metric-label">潛在報酬空間</span>
-            <span class="metric-value potential">+{upside:.1f}%</span>
-        </div>
-    </div>
-    <div class="metric-row">
-        <div class="metric">
-            <span class="metric-label">停利目標(BSL)</span>
-            <span class="metric-value target-price">{target_str}</span>
-        </div>
-        <div class="metric">
-            <span class="metric-label">防守停損(OB Low)</span>
-            <span class="metric-value stop-loss">{sl_str}</span>
-        </div>
-    </div>
-    {f'''
-    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-        <div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div>
-        <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div>
-    </div>
-    ''' if desc and desc != '無' else ''}
-</div>
-"""
+        desc_html = f'<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);"><div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div><div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div></div>' if desc and desc != '無' else ''
+        sector_html = f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''
+        html = f'<div class="stock-card"><h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;"><span style="color:#60a5fa;">{ticker}</span><span>{c_name}</span>{sector_html}</h2><div class="metric-row"><div class="metric"><span class="metric-label">建議進場區間</span><span class="metric-value buy-zone">{entry}</span></div><div class="metric"><span class="metric-label">潛在報酬空間</span><span class="metric-value potential">+{upside:.1f}%</span></div></div><div class="metric-row"><div class="metric"><span class="metric-label">停利目標(BSL)</span><span class="metric-value target-price">{target_str}</span></div><div class="metric"><span class="metric-label">防守停損(OB Low)</span><span class="metric-value stop-loss">{sl_str}</span></div></div>{desc_html}</div>'
         
         if stock.get('is_fallback') and stock.get('fallback_reason'):
             reason = stock['fallback_reason']
-            html += f"""
-<div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px;">
-    <span style="color: #fbbf24; font-size: 13px; font-weight: 600;">💡 推薦原因</span>
-    <div style="color: #d1d5db; font-size: 13px; margin-top: 4px; line-height: 1.5;">{reason}</div>
-</div>
-"""
+            html += f'<div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px;"><span style="color: #fbbf24; font-size: 13px; font-weight: 600;">💡 推薦原因</span><div style="color: #d1d5db; font-size: 13px; margin-top: 4px; line-height: 1.5;">{reason}</div></div>'
             
         html += "</div>"
         
