@@ -71,37 +71,25 @@ st.markdown("""
 # UI 區塊設計 - 解決首次載入白畫面
 # -----------------------------------------------------
 st.title("📈 台股 SMC x Vegas 百大流動性股全掃描")
-st.markdown("每日 08:30 自動運算，從台股市值前 150 大流動性優勢標的，精選符合 **長線多頭 (Vegas)** 與 **價格回測支撐區 (SMC OB+FVG)** 的 **Top 5 強勢股**。")
+st.markdown("每小時自動運算，從台股市值前 150 大流動性優勢標的，精選符合 **長線多頭 (Vegas)** 與 **價格回測支撐區 (SMC OB+FVG)** 的 **Top 5 強勢股**。")
 
-# 透過 Streamlit 原生方式執行首次資料讀取，避免畫面死亡
-@st.cache_data(ttl=60*60)
-def fetch_signals_or_run():
-    if not os.path.exists('data/signals.json'):
-        return None
+# 透過 Streamlit @st.cache_data 原生機制，實作「開啟網頁時掃描」與「每小時快取失效自動重掃」
+@st.cache_data(ttl=3600, show_spinner="🤖 系統正在進行智慧掃描與分析 (大約需要 20-30 秒，稍後 1 小時內免等待)...")
+def get_latest_signals():
     try:
+        data_fetcher.run_analysis()
         with open('data/signals.json', 'r') as f:
             return json.load(f)
     except:
-        return None
+        return []
 
-signals = fetch_signals_or_run()
+signals = get_latest_signals()
 
-if signals is None:
-    st.info("系統尚未建立最新的熱門股掃描訊號。請點擊上方按鈕首次初始化資料。")
-    if st.button("🚀 啟動全市場初始掃描 (預計 20-30 秒)"):
-        with st.spinner("正在使用 yfinance 多執行緒並行掃描前 150 大台股歷史資料..."):
-            data_fetcher.run_analysis()
-            st.cache_data.clear()
-            st.success("分析完成！")
-            st.rerun()
-    st.stop()
-else:
-    # 新增一個手動更新按鈕
-    if st.button("🔄 重新掃描最新市場行情"):
-        with st.spinner("正在並行掃描前 150 大台股..."):
-            data_fetcher.run_analysis()
-            st.cache_data.clear()
-            st.rerun()
+col_btn, _ = st.columns([1, 2])
+with col_btn:
+    if st.button("🔄 強制手動重新掃描 (無視 1 小時冷卻)"):
+        st.cache_data.clear()
+        st.rerun()
 
 # 判斷是否為 Fallback
 is_fallback_mode = False
@@ -112,9 +100,9 @@ if is_fallback_mode:
     st.warning(f"⚠️ 今日無完美觸發進場標的，系統啟動備用機制，推薦 {len(signals)} 檔【潛力觀察名單】供參：")
 else:
     if not signals:
-        st.info("今日無任何標的觸發信號。")
+        st.info("目前無任何標的觸發信號。")
     else:
-        st.success(f"🔥 今日掃描完成！為您精選出 {len(signals)} 檔最強勢潛力標的！")
+        st.success(f"🔥 最新掃描完成！為您精選出 {len(signals)} 檔最強勢潛力標的！")
 
 display_stocks = signals
 
