@@ -297,7 +297,22 @@ def run_analysis():
     with open('data/signals.json', 'w') as f:
         json.dump(final_list, f, indent=4)
         
-    print(f"[{datetime.datetime.now()}] Analysis complete. Saved Top 5 to data/signals.json")
+    history_file = 'data/history.json'
+    history_data = {}
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, 'r') as f:
+                history_data = json.load(f)
+        except:
+            pass
+            
+    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+    history_data[today_str] = final_list
+    
+    with open(history_file, 'w') as f:
+        json.dump(history_data, f, indent=4)
+        
+    print(f"[{datetime.datetime.now()}] Analysis complete. Saved Top 5 to data/signals.json and data/history.json")
 
 if __name__ == "__main__":
     run_analysis()

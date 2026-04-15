@@ -117,15 +117,28 @@ else:
 
 display_stocks = signals
 
-# 頁面排版
-col1, col2 = st.columns([1, 2])
+# 讀取歷史資料
+history_data = {}
+if os.path.exists('data/history.json'):
+    try:
+        with open('data/history.json', 'r') as f:
+            history_data = json.load(f)
+    except:
+        pass
 
-# 初始化選股狀態
-if 'selected_ticker' not in st.session_state:
-    st.session_state.selected_ticker = display_stocks[0]['ticker'] if display_stocks else None
+def render_dashboard(display_stocks, key_prefix):
+    if not display_stocks:
+        st.info("此日期無推薦標的。")
+        return
 
-with col1:
-    st.subheader("📋 每日 Top 5 強勢股清單")
+    col1, col2 = st.columns([1, 2])
+
+    session_key = f'selected_ticker_{key_prefix}'
+    if session_key not in st.session_state:
+        st.session_state[session_key] = display_stocks[0]['ticker'] if display_stocks else None
+
+    with col1:
+        st.subheader("📋 強勢股清單")
     for stock in display_stocks:
         ticker = stock['ticker']
         entry = stock.get('entry_zone') or "未成型"
@@ -152,14 +165,14 @@ with col1:
         
         st.markdown(html, unsafe_allow_html=True)
         # 取代危險的 JS onclick，使用完美原生的 Streamlit button
-        if st.button(f"📊 載入 {ticker} 走勢圖", key=f"btn_{ticker}", use_container_width=True):
-            st.session_state.selected_ticker = ticker
+        if st.button(f"📊 載入 {ticker} 走勢圖", key=f"btn_{ticker}_{key_prefix}", use_container_width=True):
+            st.session_state[session_key] = ticker
             st.rerun()
 
-with col2:
-    selected = st.session_state.selected_ticker
-    if selected:
-        st.subheader(f"📊 {selected} 價格動態與 SMC 結構")
+    with col2:
+        selected = st.session_state[session_key]
+        if selected:
+            st.subheader(f"📊 {selected} 價格動態與 SMC 結構")
         
         stock_data = next((s for s in display_stocks if s['ticker'] == selected), None)
         
@@ -223,3 +236,22 @@ with col2:
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+# 頁面排版：標籤頁
+tab_main, tab_history = st.tabs(["🔥 今日最新推薦", "📚 歷史回顧寶庫"])
+
+with tab_main:
+    render_dashboard(signals, "main")
+
+with tab_history:
+    if not history_data:
+        st.info("目前尚無歷史紀錄。請先執行過幾次掃描後再來查看！")
+    else:
+        # 取得所有可用日期，最新日期排最前
+        available_dates = sorted(list(history_data.keys()), reverse=True)
+        selected_date = st.selectbox("📅 選擇歷史日期", available_dates)
+        
+        if selected_date:
+            st.markdown(f"### {selected_date} 選股回顧")
+            history_signals = history_data[selected_date]
+            render_dashboard(history_signals, f"hist_{selected_date}")
