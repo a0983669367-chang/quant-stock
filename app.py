@@ -4,6 +4,7 @@ import os
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import data_fetcher
 import threading
 
@@ -177,7 +178,7 @@ def render_dashboard(display_stocks, key_prefix):
         stock_data = next((s for s in display_stocks if s['ticker'] == selected), None)
         
         with st.spinner("繪製 K 線圖中..."):
-            df = yf.download(selected, period="6mo", progress=False)
+            df = yf.download(selected, period="1y", progress=False)
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
                 
@@ -189,7 +190,14 @@ def render_dashboard(display_stocks, key_prefix):
             df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
             df['EMA_676'] = close_s.ewm(span=676, adjust=False).mean()
 
-            fig = go.Figure()
+            # --- Rank IC Calculation ---
+            df['Future_Return'] = close_s.shift(-5) / close_s - 1
+            df['Vegas_Strength'] = (df['EMA_144'] - df['EMA_576']) / df['EMA_576']
+            rolling_ic = df['Vegas_Strength'].rolling(window=60).corr(df['Future_Return'], method='spearman')
+            df['Rolling_Rank_IC'] = rolling_ic.fillna(0) # 避免圖表報錯
+
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                                vertical_spacing=0.03, row_heights=[0.75, 0.25])
 
             # 確保提取為 1D Series 避免 yfinance 回傳多重欄位 DataFrame 導致 Plotly 繪圖失敗
             open_s = df['Open'].iloc[:, 0] if isinstance(df['Open'], pd.DataFrame) else df['Open']
@@ -200,13 +208,22 @@ def render_dashboard(display_stocks, key_prefix):
             fig.add_trace(go.Candlestick(
                 x=df.index, open=open_s, high=high_s, low=low_s, close=close_s,
                 name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
-            ))
+            ), row=1, col=1)
 
             # EMAs
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_169'], mode='lines', name='EMA 169', line=dict(color='#fbbf24', width=1.5)))
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_676'], mode='lines', name='EMA 676', line=dict(color='#8b5cf6', width=1.5)))
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_169'], mode='lines', name='EMA 169', line=dict(color='#fbbf24', width=1.5)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_676'], mode='lines', name='EMA 676', line=dict(color='#8b5cf6', width=1.5)), row=1, col=1)
+
+            # Rank IC Bar Chart
+            ic_colors = ['#22c55e' if val >= 0 else '#ef4444' for val in df['Rolling_Rank_IC']]
+            fig.add_trace(go.Bar(
+                x=df.index, y=df['Rolling_Rank_IC'], name='Rank IC (5日勝率)',
+                marker_color=ic_colors, opacity=0.8
+            ), row=2, col=1)
+            fig.add_hline(y=0.05, line_dash="dash", line_color="rgba(34,197,94,0.5)", row=2, col=1)
+            fig.add_hline(y=-0.05, line_dash="dash", line_color="rgba(239,68,68,0.5)", row=2, col=1)
 
             # SMC Structures
             if stock_data:
@@ -225,13 +242,14 @@ def render_dashboard(display_stocks, key_prefix):
                     )
 
                 if stock_data.get('target1'):
-                    fig.add_hline(y=stock_data['target1'], line_dash="dash", line_color="#cbd5e1", annotation_text="Target 1 (BSL)")
+                    fig.add_hline(y=stock_data['target1'], line_dash="dash", line_color="#cbd5e1", annotation_text="Target 1 (BSL)", row=1, col=1)
                 if stock_data.get('target2'):
-                    fig.add_hline(y=stock_data['target2'], line_dash="dash", line_color="#bae6fd", annotation_text="Target 2 (EQH)")
+                    fig.add_hline(y=stock_data['target2'], line_dash="dash", line_color="#bae6fd", annotation_text="Target 2 (EQH)", row=1, col=1)
 
             fig.update_layout(
                 template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                xaxis_rangeslider_visible=False, margin=dict(l=0, r=0, t=30, b=0),
+                xaxis_rangeslider_visible=False, xaxis2_rangeslider_visible=False,
+                margin=dict(l=0, r=0, t=30, b=0),
                 hovermode='x unified', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
 
