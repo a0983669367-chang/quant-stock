@@ -140,6 +140,31 @@ def render_dashboard(display_stocks, key_prefix):
 
     with col1:
         st.subheader("📋 強勢股清單")
+        
+        # 準備 Excel (CSV) 匯出資料
+        try:
+            df_export = pd.DataFrame(display_stocks)
+            rename_map = {
+                'ticker': '股票代號', 'company_name': '公司名稱', 'sector': '產業',
+                'entry_zone': '進場區間', 'stop_loss': '停損價', 'target1': '理想停利價',
+                'upside_pct': '潛在報酬率', 'description': '業務說明'
+            }
+            df_export = df_export.rename(columns=rename_map)
+            export_cols = [v for k, v in rename_map.items()]
+            available_cols = [c for c in export_cols if c in df_export.columns]
+            
+            # 轉換為帶有 BOM 的 UTF-8 字串，確保 Windows Excel 打開不會亂碼
+            csv_data = df_export[available_cols].to_csv(index=False, encoding='utf-8-sig')
+            
+            st.download_button(
+                label="⬇️ 匯出此名單至 Excel (CSV檔)",
+                data=csv_data,
+                file_name=f"SMC_選股名單_{key_prefix}.csv",
+                mime="text/csv"
+            )
+        except Exception as e:
+            pass
+            
     for stock in display_stocks:
         ticker = stock['ticker']
         entry = stock.get('entry_zone') or "未成型"
