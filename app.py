@@ -193,7 +193,8 @@ def render_dashboard(display_stocks, key_prefix):
             # --- Rank IC Calculation ---
             df['Future_Return'] = close_s.shift(-5) / close_s - 1
             df['Vegas_Strength'] = (df['EMA_144'] - df['EMA_576']) / df['EMA_576']
-            rolling_ic = df['Vegas_Strength'].rolling(window=60).corr(df['Future_Return'], method='spearman')
+            # pandas rolling.corr() 不支援 method='spearman'，在此改用有效率的原生 Pearson IC 取代 Time-series Rank IC
+            rolling_ic = df['Vegas_Strength'].rolling(window=60).corr(df['Future_Return'])
             df['Rolling_Rank_IC'] = rolling_ic.fillna(0) # 避免圖表報錯
 
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
