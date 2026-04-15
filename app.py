@@ -153,12 +153,13 @@ def render_dashboard(display_stocks, key_prefix):
             export_cols = [v for k, v in rename_map.items()]
             available_cols = [c for c in export_cols if c in df_export.columns]
             
-            # 轉換為帶有 BOM 的 UTF-8 字串，確保 Windows Excel 打開不會亂碼
-            csv_data = df_export[available_cols].to_csv(index=False, encoding='utf-8-sig')
+            # 將字串手動編碼為 utf-8-sig bytes，避免 Streamlit 輸出預設無 BOM 的 UTF-8 導致 Windows 亂碼
+            csv_string = df_export[available_cols].to_csv(index=False)
+            csv_bytes = csv_string.encode('utf-8-sig')
             
             st.download_button(
                 label="⬇️ 匯出此名單至 Excel (CSV檔)",
-                data=csv_data,
+                data=csv_bytes,
                 file_name=f"SMC_選股名單_{key_prefix}.csv",
                 mime="text/csv"
             )
