@@ -108,7 +108,7 @@ signals = get_latest_signals(cutoff_date_key)
 
 col_btn, _ = st.columns([1, 2])
 with col_btn:
-    if st.button("🔄 強制手動重新掃描 (無視 1 小時冷卻)"):
+    if st.button("🔄 重新掃描"):
         st.cache_data.clear()
         st.rerun()
 
