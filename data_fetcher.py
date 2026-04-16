@@ -236,6 +236,43 @@ def calculate_smc_and_vegas(ticker):
         "upside_pct": float((target1 - latest['Close']) / latest['Close']) if target1 and target1 > latest['Close'] else 0.0
     }
 
+def update_triggered_history(signals):
+    """將已成形的標的存入歷史紀錄檔，確保持久化"""
+    history_file = 'data/triggered_records.json'
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    
+    # 讀取現有紀錄
+    records = []
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+        except: records = []
+        
+    # 找出本次掃描中「已成形」的標的
+    new_count = 0
+    for s in signals:
+        if s.get('status') == 'Triggered':
+            # 檢查是否已存在 (同標的 + 同日期)
+            exists = any(r['ticker'] == s['ticker'] and r['date'] == today for r in records)
+            if not exists:
+                records.append({
+                    "date": today,
+                    "ticker": s['ticker'],
+                    "name": s['name'],
+                    "target": s['target1'],
+                    "stop_loss": s['stop_loss'],
+                    "entry_price": s['latest_close']
+                })
+                new_count += 1
+                
+    if new_count > 0:
+        # 按日期降序排列
+        records.sort(key=lambda x: x['date'], reverse=True)
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump(records, f, ensure_ascii=False, indent=4)
+        print(f"新增了 {new_count} 筆成形紀錄到 {history_file}")
+
 def run_analysis():
     print(f"[{datetime.datetime.now()}] Scanning {len(UNIVERSE)} Taiwan stocks...")
     results = []
@@ -274,6 +311,9 @@ def run_analysis():
         
     with open('data/history.json', 'w', encoding='utf-8') as f:
         json.dump(history, f, indent=4, ensure_ascii=False)
+        
+    # -- 新增功能：更新已成型歷史紀錄 --
+    update_triggered_history(top_picks)
 
     print(f"[{datetime.datetime.now()}] Saved {len(top_picks)} picks to signals.json and history.json")
     return top_picks
