@@ -18,8 +18,8 @@
     "2026-04-16": [
         {
             "ticker": "1519.TW",
-            "name": "Fortune Electric Co., Ltd.",
-            "industry": "Electrical Equipment & Parts",
+            "name": "華城",
+            "industry": "電力重電",
             "market_cap": 275448233984.0,
             "status": "Potential",
             "is_vegas_bullish": true,
@@ -43,8 +43,8 @@
         },
         {
             "ticker": "6239.TW",
-            "name": "Powertech Technology Inc.",
-            "industry": "Semiconductors",
+            "name": "力成",
+            "industry": "半導體",
             "market_cap": 156994355200.0,
             "status": "Potential",
             "is_vegas_bullish": true,
@@ -68,8 +68,8 @@
         },
         {
             "ticker": "6282.TW",
-            "name": "AcBel Polytech Inc.",
-            "industry": "Electrical Equipment & Parts",
+            "name": "康舒",
+            "industry": "電力重電",
             "market_cap": 43009703936.0,
             "status": "Potential",
             "is_vegas_bullish": true,
@@ -93,7 +93,7 @@
         },
         {
             "ticker": "2884.TW",
-            "name": "E.SUN Financial Holding Company, Ltd.",
+            "name": "玉山金",
             "industry": "Banks - Regional",
             "market_cap": 533741993984.0,
             "status": "Potential",
@@ -118,8 +118,8 @@
         },
         {
             "ticker": "5347.TWO",
-            "name": "Vanguard International Semiconductor Corporation",
-            "industry": "Semiconductors",
+            "name": "世界",
+            "industry": "半導體",
             "market_cap": 254983340032.0,
             "status": "Potential",
             "is_vegas_bullish": true,
@@ -140,181 +140,6 @@
             "entry_zone": "110.00 - 125.50",
             "latest_close": 132.5,
             "upside_pct": 0.06037735849056604
-        },
-        {
-            "ticker": "2454.TW",
-            "name": "MediaTek Inc.",
-            "industry": "Semiconductors",
-            "market_cap": 3024628744192.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 73.10924369747899,
-            "vol_ratio": 1.3763649753022664,
-            "pe_ratio": 28.690384,
-            "div_yield": 299.0,
-            "ob": [
-                1480.0,
-                1430.0
-            ],
-            "fvg": [
-                1550.0,
-                1480.0
-            ],
-            "target1": 1975.0,
-            "stop_loss": 1401.3999999999999,
-            "entry_zone": "1430.00 - 1550.00",
-            "latest_close": 1895.0,
-            "upside_pct": 0.04221635883905013
-        },
-        {
-            "ticker": "1590.TW",
-            "name": "Airtac International Group",
-            "industry": "Specialty Industrial Machinery",
-            "market_cap": 244999995392.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 79.9442896935933,
-            "vol_ratio": 1.5266616989635564,
-            "pe_ratio": 29.20143,
-            "div_yield": 169.0,
-            "ob": [
-                1010.0,
-                977.0
-            ],
-            "fvg": [
-                989.0,
-                973.0
-            ],
-            "target1": 1275.0,
-            "stop_loss": 953.54,
-            "entry_zone": "973.00 - 1010.00",
-            "latest_close": 1225.0,
-            "upside_pct": 0.04081632653061224
-        },
-        {
-            "ticker": "2356.TW",
-            "name": "Inventec Corporation",
-            "industry": "Computer Hardware",
-            "market_cap": 161436368896.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 61.66666807951871,
-            "vol_ratio": 0.9773916556098639,
-            "pe_ratio": 18.6722,
-            "div_yield": 382.0,
-            "ob": [
-                43.70000076293945,
-                42.650001525878906
-            ],
-            "fvg": [
-                42.95000076293945,
-                42.900001525878906
-            ],
-            "target1": 46.75,
-            "stop_loss": 41.79700149536133,
-            "entry_zone": "42.65 - 43.70",
-            "latest_close": 45.0,
-            "upside_pct": 0.03888888888888889
-        },
-        {
-            "ticker": "6488.TWO",
-            "name": "GlobalWafers Co., Ltd.",
-            "industry": "Semiconductors",
-            "market_cap": 258181414912.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 75.0,
-            "vol_ratio": 0.9160644408800813,
-            "pe_ratio": 35.363457,
-            "div_yield": 149.0,
-            "ob": [
-                424.0,
-                407.0
-            ],
-            "fvg": [
-                435.5,
-                420.5
-            ],
-            "target1": 555.2978218942052,
-            "stop_loss": 398.86,
-            "entry_zone": "407.00 - 435.50",
-            "latest_close": 540.0,
-            "upside_pct": 0.028329299804083677
-        },
-        {
-            "ticker": "2303.TW",
-            "name": "United Microelectronics Corporation",
-            "industry": "Semiconductors",
-            "market_cap": 859771109376.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 66.91177027448146,
-            "vol_ratio": 1.8253129914989537,
-            "pe_ratio": 20.634443,
-            "div_yield": 459.0,
-            "ob": [
-                57.79999923706055,
-                52.79999923706055
-            ],
-            "fvg": [
-                59.5,
-                57.79999923706055
-            ],
-            "target1": 69.5,
-            "stop_loss": 51.743999252319334,
-            "entry_zone": "52.80 - 59.50",
-            "latest_close": 68.30000305175781,
-            "upside_pct": 0.017569500653357637
-        },
-        {
-            "ticker": "2892.TW",
-            "name": "First Financial Holding Co., Ltd.",
-            "industry": "Banks - Regional",
-            "market_cap": 414128701440.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 51.85182045521977,
-            "vol_ratio": 0.8058036160225059,
-            "pe_ratio": 15.401069,
-            "div_yield": 329.0,
-            "ob": [
-                28.649999618530273,
-                28.399999618530273
-            ],
-            "fvg": [
-                28.700000762939453,
-                28.649999618530273
-            ],
-            "target1": 29.100000381469727,
-            "stop_loss": 27.831999626159668,
-            "entry_zone": "28.40 - 28.70",
-            "latest_close": 28.799999237060547,
-            "upside_pct": 0.010416706679045007
-        },
-        {
-            "ticker": "2382.TW",
-            "name": "Quanta Computer Inc.",
-            "industry": "Computer Hardware",
-            "market_cap": 1227664130048.0,
-            "status": "Potential",
-            "is_vegas_bullish": true,
-            "rsi": 66.66666666666666,
-            "vol_ratio": 0.7331416309100829,
-            "pe_ratio": 16.842941,
-            "div_yield": 421.0,
-            "ob": [
-                284.5,
-                278.0
-            ],
-            "fvg": [
-                293.5,
-                291.5
-            ],
-            "target1": null,
-            "stop_loss": 272.44,
-            "entry_zone": "278.00 - 293.50",
-            "latest_close": 318.5,
-            "upside_pct": 0.0
         }
     ]
 }

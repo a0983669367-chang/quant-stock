@@ -20,6 +20,58 @@ UNIVERSE = [
     '1513.TW', '1514.TW', '1605.TW', '1503.TW', '2360.TW', '2385.TW', '2542.TW', '2618.TW', '2610.TW', '3037.TW'
 ]
 
+NAME_MAP = {
+    '2330.TW': '台積電', '2317.TW': '鴻海', '2454.TW': '聯發科', '2308.TW': '台達電', '2382.TW': '廣達',
+    '2881.TW': '富邦金', '2882.TW': '國泰金', '2412.TW': '中華電', '2891.TW': '中信金', '2886.TW': '兆豐金',
+    '3231.TW': '緯創', '2884.TW': '玉山金', '1216.TW': '統一', '2002.TW': '中鋼', '2892.TW': '第一金',
+    '2885.TW': '元大金', '2303.TW': '聯電', '2890.TW': '永豐金', '2395.TW': '研華', '3711.TW': '日月光投控',
+    '2880.TW': '華南金', '2883.TW': '凱基金', '5880.TW': '合庫金', '2887.TW': '台新金', '2912.TW': '統一超',
+    '1303.TW': '南亞', '2357.TW': '華碩', '2324.TW': '仁寶', '2379.TW': '瑞昱', '3045.TW': '台灣大',
+    '1301.TW': '台塑', '2301.TW': '光寶科', '1101.TW': '台泥', '3034.TW': '聯詠', '2207.TW': '和泰車',
+    '2345.TW': '智邦', '2356.TW': '英業達', '4938.TW': '和碩', '2888.TW': '新光金', '2603.TW': '長榮',
+    '2609.TW': '陽明', '2615.TW': '萬海', '1590.TW': '亞德客-KY', '5871.TW': '中租-KY', '3008.TW': '大立光',
+    '6669.TW': '緯穎', '3661.TW': '世芯-KY', '3481.TW': '群創', '2409.TW': '友達', '1326.TW': '台化',
+    '2353.TW': '宏碁', '1304.TW': '台聚', '1402.TW': '遠東新', '2105.TW': '正新', '2313.TW': '華通',
+    '2352.TW': '佳世達', '2377.TW': '微星', '2383.TW': '台光電', '6415.TW': '矽力*-KY', '1504.TW': '東元',
+    '3017.TW': '奇鋐', '3036.TW': '文曄', '3324.TW': '雙鴻', '3532.TW': '台勝科', '4958.TW': '臻鼎-KY',
+    '6269.TW': '台郡', '6239.TW': '力成', '8069.TWO': '元太', '8299.TWO': '群聯', '3105.TWO': '穩懋',
+    '6488.TWO': '環球晶', '5483.TWO': '中美晶', '3529.TWO': '力旺', '5347.TWO': '世界', '6147.TWO': '頎邦',
+    '8046.TWO': '南電', '6446.TWO': '藥華藥', '8436.TW': '大江', '9904.TW': '寶成', '9910.TW': '豐泰',
+    '9914.TW': '美利達', '9921.TW': '巨大', '9941.TW': '裕融', '3363.TW': '上詮', '2354.TW': '鴻準',
+    '6282.TW': '康舒', '8041.TW': '永道', '6138.TW': '茂達', '6451.TW': '訊芯-KY', '1519.TW': '華城',
+    '1513.TW': '中興電', '1514.TW': '亞力', '1605.TW': '華新', '1503.TW': '士電', '2360.TW': '致茂',
+    '2385.TW': '群光', '2542.TW': '興富發', '2618.TW': '長榮航', '2610.TW': '華航', '3037.TW': '欣興'
+}
+
+INDUSTRY_MAP = {
+    'Semiconductors': '半導體',
+    'Electrical Equipment & Parts': '電力重電',
+    'Electronic Components': '電子零組件',
+    'Computers - IT Services': '電腦資訊工程',
+    'Consumer Electronics': '消費性電子',
+    'Auto Manufacturers': '汽車工業',
+    'Steel': '鋼鐵工業',
+    'Banks': '金融銀行',
+    'Insurance - Life': '人壽保險',
+    'Insurance - Property & Casualty': '產物保險',
+    'Shipping': '航運業',
+    'Chemicals': '化學工業',
+    'Building Materials': '建材營造',
+    'Oil & Gas Integrated': '油氣工業',
+    'Telecommunications Services': '電信服務',
+    'Food Confectioners': '食品加工',
+    'Textile Manufacturing': '紡織纖維',
+    'Footwear & Accessories': '鞋業配件',
+    'Industrial Conglomerates': '綜合工業',
+    'Semiconductor Equipment & Materials': '半導體設備',
+    'Computer Hardware': '電腦硬體',
+    'Electronic Gaming & Multimedia': '電子遊戲多媒體',
+    'Biotechnology': '生物科技',
+    'Packaging & Containers': '包裝容器',
+    'Real Estate - General': '房地產',
+    'Airlines': '航空業'
+}
+
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -145,14 +197,21 @@ def calculate_smc_and_vegas(ticker):
     if status == "None": return None
 
     # Fetch Fundamentals for candidates
-    pe_ratio, div_yield, name, industry, market_cap = 0, 0, ticker, "N/A", 0
+    # Use ticker as default name/industry if not in map
+    pe_ratio, div_yield, market_cap = 0, 0, 0
+    name = NAME_MAP.get(ticker, ticker)
+    industry = "N/A"
+    
     try:
         info = t_obj.info
         pe_ratio = info.get('trailingPE', 0)
         div_yield = info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0
-        name = info.get('longName', ticker)
-        industry = info.get('industry', 'N/A')
+        raw_industry = info.get('industry', 'N/A')
+        industry = INDUSTRY_MAP.get(raw_industry, raw_industry)
         market_cap = info.get('marketCap', 0)
+        # If longName is present and we don't have it in our map, we could still use ticker or English
+        if name == ticker:
+            name = info.get('shortName', ticker)
     except: pass
 
     return {
@@ -184,8 +243,11 @@ def run_analysis():
             res = future.result()
             if res: results.append(res)
     
+    # Filter by upside (at least 5%)
+    filtered_results = [res for res in results if res.get('upside_pct', 0) >= 0.05]
+    
     # Sort triggered first, then potential, then by upside
-    sorted_res = sorted(results, key=lambda x: (x['status'] == 'Triggered', x['upside_pct']), reverse=True)
+    sorted_res = sorted(filtered_results, key=lambda x: (x['status'] == 'Triggered', x['upside_pct']), reverse=True)
     top_picks = sorted_res[:15]
 
     os.makedirs('data', exist_ok=True)

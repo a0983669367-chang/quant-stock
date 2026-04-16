@@ -154,7 +154,8 @@ with col1:
             st.markdown(f"### {title}")
             for stock in list_stocks:
                 ticker = stock['ticker']
-                name = stock.get('name', '')
+                name = stock.get('name', ticker)
+                status_cn = "已成形" if stock['status'] == 'Triggered' else "未成形"
                 industry = stock.get('industry', 'N/A')
                 pe = stock.get('pe_ratio', 0)
                 dy = stock.get('div_yield', 0)
@@ -173,7 +174,7 @@ with col1:
                 <div class="stock-card">
                     <div class="stock-header">
                         <div>
-                            <h2>{ticker} <span class="status-badge {badge_class}">{stock['status']}</span></h2>
+                            <h2>{ticker} {name} <span class="status-badge {badge_class}">{status_cn}</span></h2>
                             <div class="industry-tag">{industry}</div>
                         </div>
                     </div>
@@ -183,21 +184,21 @@ with col1:
                     </div>
                     <div class="metric-row">
                         <div class="metric">
-                            <span class="metric-label">進場區間</span>
+                            <span class="metric-label">建議進場位</span>
                             <span class="metric-value buy-zone">{entry}</span>
                         </div>
                         <div class="metric">
-                            <span class="metric-label">潛在報酬</span>
+                            <span class="metric-label">預期報酬率</span>
                             <span class="metric-value potential-val">+{upside:.1f}%</span>
                         </div>
                     </div>
                     <div class="metric-row">
                         <div class="metric">
-                            <span class="metric-label">停利</span>
+                            <span class="metric-label">停利修正位</span>
                             <span class="metric-value target-price">{target_str}</span>
                         </div>
                         <div class="metric">
-                            <span class="metric-label">停損</span>
+                            <span class="metric-label">防守停損位</span>
                             <span class="metric-value stop-loss">{sl_str}</span>
                         </div>
                     </div>
