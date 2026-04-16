@@ -44,12 +44,6 @@ def get_swing_highs(df, window=5):
 def get_futures_info(ticker):
     meta = FUTURES_METADATA.get(ticker, {'name': ticker, 'sector': '未知', 'desc': '無'})
     return meta['name'], meta['sector'], meta['desc']
-            desc = strings[idx+1]
-            if desc == '配股資訊': desc = '無'
-        except: pass
-        return {'company_name': name, 'sector': sector, 'description': desc}
-    except Exception:
-        return {'company_name': '未知', 'sector': '未知', 'description': '無'}
 
 def calculate_smc_and_vegas_df(ticker, df):
     if df.empty:
