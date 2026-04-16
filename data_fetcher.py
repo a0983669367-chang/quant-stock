@@ -14,7 +14,8 @@ UNIVERSE = [
     'ES=F',  # 標普 500
     'YM=F',  # 道瓊工業
     'NKD=F', # 日經 225
-    'FTW=F'  # 富時中國 A50
+    'GC=F',  # 黃金期貨
+    'CL=F'   # 原油期貨
 ]
 
 FUTURES_METADATA = {
@@ -22,7 +23,8 @@ FUTURES_METADATA = {
     'ES=F': {'name': '標普 500 期貨 (S&P 500)', 'sector': '指數期貨', 'desc': '全美前 500 大市值權重，全球資產配置最核心指標。'},
     'YM=F': {'name': '道瓊期貨 (Dow Jones)', 'sector': '指數期貨', 'desc': '包含 30 檔具備代表性的商業巨頭，歷史最悠久的成熟市場指標。'},
     'NKD=F': {'name': '日經 225 期貨 (Nikkei)', 'sector': '指數期貨', 'desc': '反應日本主要上市企業表現，亞太區龍頭量化交易標的。'},
-    'FTW=F': {'name': '中國 A50 期貨 (A50)', 'sector': '指數期貨', 'desc': '追蹤中國 A 股流通市值最大 50 檔企業，受政策與外資高度影響。'}
+    'GC=F': {'name': '黃金期貨 (Gold)', 'sector': '金屬期貨', 'desc': '避險資產王者，在市場不確定性高時具備強大的保值預測力。'},
+    'CL=F': {'name': '輕原油期貨 (Crude Oil)', 'sector': '能源期貨', 'desc': '反映全球經濟擴張與能源需求，波動巨大適合趨勢追蹤。'}
 }
 
 def get_swing_lows(df, window=3):
@@ -135,25 +137,35 @@ def calculate_smc_and_vegas_df(ticker, df):
                 if predicted_zone: break
 
     # --- 4. 目標止贏位 (Logical Target - Draw on Liquidity) ---
-    # 多頭目標：區間高點或上方的顯著高點
-    # 空頭目標：區間低點或下方的顯著低點
+    # 多頭目標：區間高點；空頭目標：區間低點
     logical_target = range_high if is_bullish else range_low
+    
+    # --- 5. 計算預測勝率 (Current IC) ---
+    current_ic = 0.0
+    try:
+        df_ic = df.dropna(subset=['Close']).copy()
+        df_ic['Future_Return'] = df_ic['Close'].shift(-5) / df_ic['Close'] - 1
+        df_ic['Vegas_Strength'] = (df_ic['EMA_144'] - df_ic['EMA_576']) / df_ic['EMA_576']
+        rolling_ic = df_ic['Vegas_Strength'].rolling(window=60).corr(df_ic['Future_Return'])
+        valid_ics = rolling_ic.dropna()
+        if not valid_ics.empty:
+            current_ic = float(valid_ics.iloc[-1])
+    except:
+        pass
 
     return {
         "ticker": ticker,
-        "trigger": trigger,
-        "is_vegas_bullish": bool(is_vegas_bullish),
+        "direction": direction,
+        "range_high": range_high,
+        "range_low": range_low,
+        "equilibrium": equilibrium,
+        "predicted_zone": predicted_zone,
+        "poi_type": poi_type,
+        "logical_target": logical_target,
+        "latest_close": float(latest['Close']),
+        "current_ic": current_ic,
         "ema144": float(latest['EMA_144']),
-        "ema576": float(latest['EMA_576']),
-        "ob": valid_ob,
-        "ob_date": ob_start_date,
-        "fvg": valid_fvg,
-        "fvg_date": fvg_start_date,
-        "target1": target1,
-        "target2": target2,
-        "stop_loss": stop_loss,
-        "entry_zone": entry_zone,
-        "latest_close": float(latest['Close'])
+        "ema576": float(latest['EMA_576'])
     }
 
 def run_analysis():
