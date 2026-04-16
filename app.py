@@ -18,115 +18,35 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Noto Sans TC', sans-serif;
     }
-    .stock-card {
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 20px;
-        backdrop-filter: blur(15px);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 全域字體放大 */
+    .stMarkdown p, .stMarkdown li {
+        font-size: 18px !important;
+        line-height: 1.6;
     }
-    .stock-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.5);
-        border-color: rgba(99, 102, 241, 0.8);
+    /* 摺疊面板標題樣式 */
+    .st-expanderHeader p {
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: #f8fafc !important;
     }
-    .stock-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
+    /* 指標數據放大 */
+    [data-testid="stMetricLabel"] p {
+        font-size: 16px !important;
+        color: #94a3b8 !important;
+        font-weight: 600 !important;
     }
-    .stock-title {
-        display: flex;
-        flex-direction: column;
+    [data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        font-weight: 800 !important;
     }
-    .stock-card h2 {
-        margin: 0;
-        color: #f8fafc;
-        font-weight: 800;
-        font-size: 22px;
-        letter-spacing: -0.02em;
+    /* 骨架強化 */
+    .st-expanderContent {
+        background: rgba(255, 255, 255, 0.02);
+        padding: 20px !important;
+        border-radius: 0 0 12px 12px;
     }
-    .industry-tag {
-        font-size: 11px;
-        background: rgba(99, 102, 241, 0.25);
-        color: #c7d2fe;
-        padding: 3px 10px;
-        border-radius: 6px;
-        margin-top: 6px;
-        display: inline-block;
-        font-weight: 600;
-    }
-    .status-badge {
-        font-size: 11px;
-        padding: 5px 12px;
-        border-radius: 8px;
-        font-weight: 800;
-        text-transform: uppercase;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    .bg-triggered { background: linear-gradient(135deg, #10b981, #059669); color: white; border: 1px solid #047857; }
-    .bg-potential { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: 1px solid #b45309; }
-    
-    .price-row {
-        margin: 12px 0;
-        padding: 10px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-    }
-    .price-label { font-size: 12px; color: #94a3b8; }
-    .price-value { font-size: 24px; font-weight: 800; color: #ffffff; }
-
-    .metric-row {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 14px;
-        gap: 12px;
-    }
-    .metric {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    .metric-label {
-        font-size: 10px;
-        color: #94a3b8;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-    }
-    .metric-value {
-        font-size: 15px;
-        color: #f1f5f9;
-        font-weight: 700;
-        margin-top: 4px;
-    }
-    .buy-zone { color: #34d399; }
-    .stop-loss { color: #f87171; }
-    .target-price { color: #60a5fa; }
-    .potential-val { color: #fbbf24; }
-    
-    .fundamental-row {
-        display: flex;
-        gap: 16px;
-        margin-top: 14px;
-        padding: 10px 14px;
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 8px;
-    }
-    .f-metric {
-        font-size: 12px;
-        color: #cbd5e1;
-        font-weight: 500;
-    }
-    .f-val { color: #ffffff; font-weight: 700; margin-left: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -183,9 +103,9 @@ for title, list_stocks, icon in sections:
             target = stock.get('target1') or 0
             upside = stock.get('upside_pct', 0) * 100
             
-            # 建立摺疊標籤文字
-            status_cn = "已成形" if stock['status'] == 'Triggered' else "未成形"
-            label = f"{icon} {ticker} {name} | 現價: {price:.2f} | 預期報酬: +{upside:.1f}% | {status_cn}"
+            # 建立摺疊標籤文字 (使用彩色 Markdown 與粗體)
+            status_text = f":green[已成形]" if stock['status'] == 'Triggered' else f":orange[未成形]"
+            label = f"{icon} **{ticker} {name}** | 現價 **{price:.2f}** | 預期報酬 **+{upside:.1f}%** | {status_text}"
             
             with st.expander(label):
                 # 內部排版：上方顯示詳細指標，下方顯示圖表
