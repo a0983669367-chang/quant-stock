@@ -412,7 +412,7 @@
         "entry_price": 135.0,
         "target": 161.0,
         "stop_loss": 125.92999999999999,
-        "is_conservative": false,
+        "is_conservative": true,
         "rr_ratio": 2.8665931642778366,
         "name": "緯創",
         "result": "🛡️ 止損"
@@ -588,7 +588,7 @@
         "entry_price": 187.5,
         "target": 201.0,
         "stop_loss": 177.38,
-        "is_conservative": false,
+        "is_conservative": true,
         "rr_ratio": 1.3339920948616595,
         "name": "長榮",
         "result": "🎯 止盈"
@@ -654,7 +654,7 @@
         "entry_price": 43.20000076293945,
         "target": 48.0,
         "stop_loss": 41.20899925231934,
-        "is_conservative": false,
+        "is_conservative": true,
         "rr_ratio": 2.4108466073265524,
         "name": "英業達",
         "result": "🎯 止盈"

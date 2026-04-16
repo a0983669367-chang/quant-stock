@@ -91,7 +91,9 @@ def analyze_slice(df_slice, ticker):
         is_conservative = False
         vol_ma20 = latest['Vol_MA20'] if 'Vol_MA20' in latest else 1
         vol_ma5 = latest.get('Vol_MA5', 1)
-        if rr_ratio >= 1.5 and ema_slope > 0.05 and vol_ma5 > vol_ma20:
+        # Rule 1: RR Ratio >= 1.2 (Relaxed from 1.5)
+        # Rule 2: EMA 144 Slope > 0 (Bullish trend, relaxed from 0.05)
+        if rr_ratio >= 1.2 and ema_slope > 0 and vol_ma5 > vol_ma20:
             is_conservative = True
 
         return {

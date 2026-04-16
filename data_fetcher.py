@@ -207,10 +207,10 @@ def calculate_smc_and_vegas(ticker):
     # Conservative Filters
     is_conservative = False
     if status != "None":
-        # Rule 1: RR Ratio >= 1.5
-        # Rule 2: EMA 144 Slope > 0.05% (Bullish momentum)
+        # Rule 1: RR Ratio >= 1.2 (Relaxed from 1.5)
+        # Rule 2: EMA 144 Slope > 0 (Bullish trend, relaxed from 0.05)
         # Rule 3: Volume MA5 > Volume MA20 (Buying force)
-        if rr_ratio >= 1.5 and ema_slope > 0.05 and latest['Vol_MA5'] > latest['Vol_MA20']:
+        if rr_ratio >= 1.2 and ema_slope > 0 and latest['Vol_MA5'] > latest['Vol_MA20']:
             is_conservative = True
 
     # Fetch Fundamentals for candidates

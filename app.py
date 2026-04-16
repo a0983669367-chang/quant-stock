@@ -44,6 +44,11 @@ st.markdown("""
         padding: 20px !important;
         border-radius: 0 0 12px 12px;
     }
+    /* 特色標題顏色 */
+    .highlight-text {
+        color: #fbbf24;
+        font-weight: 800;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,7 +91,7 @@ with st.expander("📖 系統原理與使用說明 (新手必讀)"):
     
     ---
     ### 策略模式說明
-    *   **🟢 穩健型**：額外要求 **EMA 144 斜率向上**、**盈虧比 > 1.5** 且 **近期買盤增量**，適合追求高勝率。
+    *   **🟢 穩健型**：額外要求 **EMA 144 斜率向上**、**盈虧比 > 1.2** 且 **最近買盤強於平均**，適合追求穩定。
     *   **🔵 標準型**：只要結構符合即發出信號，捕捉更多潛在契機。
     """)
 
@@ -116,58 +121,84 @@ with tab1:
     triggered = [s for s in signals if s['status'] == 'Triggered']
     potential = [s for s in signals if s['status'] == 'Potential']
     
-    sections = [
-        ("🔥 已觸發進場帶 (Triggered)", triggered, "🟢"),
-        ("⏳ 潛在伏擊標的 (Potential)", potential, "🟡")
-    ]
+    # 潛在標的排序：優先顯示 RR 與 Upside 較高的標的
+    potential = sorted(potential, key=lambda x: (x.get('rr_ratio', 0), x.get('upside_pct', 0)), reverse=True)
     
-    for title, list_stocks, icon in sections:
-        if list_stocks:
-            st.markdown(f"## {title}")
-            for stock in list_stocks:
-                ticker = stock['ticker']
-                name = stock.get('name', ticker)
-                price = stock.get('latest_close', 0)
-                upside = stock.get('upside_pct', 0) * 100
-                rr = stock.get('rr_ratio', 0)
-                status_text = f":green[已成形]" if stock['status'] == 'Triggered' else f":orange[未成形]"
-                label = f"{icon} **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | {status_text}"
+    # 1. 🎖️ 本日最優 5 檔伏擊標的 (精選區)
+    if potential:
+        st.markdown("## 🎖️ 本日最優 5 檔優化伏擊標的")
+        top_5 = potential[:5]
+        for stock in top_5:
+            ticker = stock['ticker']
+            name = stock.get('name', ticker)
+            upside = stock.get('upside_pct', 0) * 100
+            rr = stock.get('rr_ratio', 0)
+            label = f"⭐ **{ticker} {name}** | 預期報酬 **+{upside:.1f}%** | 盈虧比 **{rr:.1f}**"
+            with st.expander(label):
+                m1, m2, m3, m4 = st.columns(4)
+                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
                 
-                with st.expander(label):
-                    m1, m2, m3, m4 = st.columns(4)
-                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-                    
-                    st.info(f"🏷️ 產業: {stock.get('industry', 'N/A')} | 📊 PE: {stock.get('pe_ratio', 0):.1f} | 💰 殖利率: {stock.get('div_yield', 0):.1f}%")
-                    
-                    with st.spinner(f"正在載入 {ticker} 分析圖..."):
-                        t_obj = yf.Ticker(ticker)
-                        df = t_obj.history(period='2y')
-                        if not df.empty:
-                            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                            df = df.loc[:, ~df.columns.duplicated()].copy()
-                            df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
-                            df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                with st.spinner(f"載入 {ticker} 圖表..."):
+                    t_obj = yf.Ticker(ticker)
+                    df = t_obj.history(period='2y')
+                    if not df.empty:
+                        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+                        df = df.loc[:, ~df.columns.duplicated()].copy()
+                        df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
+                        df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                        fig = go.Figure()
+                        fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
+                        fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
+                        st.plotly_chart(fig, use_container_width=True)
 
-                            fig = go.Figure()
-                            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'))
-                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
-                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
-                            
-                            if stock.get('ob') and stock.get('ob_date'):
-                                fig.add_shape(type="rect", x0=stock['ob_date'], y0=stock['ob'][1], x1=df.index[-1].strftime('%Y-%m-%d'), y1=stock['ob'][0], fillcolor="rgba(239, 68, 68, 0.2)", line=dict(width=0))
-                            if stock.get('fvg') and stock.get('fvg_date'):
-                                fig.add_shape(type="rect", x0=stock['fvg_date'], y0=stock['fvg'][1], x1=df.index[-1].strftime('%Y-%m-%d'), y1=stock['fvg'][0], fillcolor="rgba(34, 197, 94, 0.2)", line=dict(width=0))
-                            
-                            fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False, hovermode='x unified')
-                            st.plotly_chart(fig, use_container_width=True)
+    # 2. 🔥 已觸發進場帶 (Triggered)
+    if triggered:
+        st.markdown("## 🔥 已觸發進場帶 (Triggered)")
+        for stock in triggered:
+            ticker = stock['ticker']
+            name = stock.get('name', ticker)
+            upside = stock.get('upside_pct', 0) * 100
+            rr = stock.get('rr_ratio', 0)
+            label = f"🟢 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | :green[已成形]"
+            with st.expander(label):
+                m1, m2, m3, m4 = st.columns(4)
+                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                st.info(f"🏷️ 產業: {stock.get('industry', 'N/A')} | 📊 PE: {stock.get('pe_ratio', 0):.1f}")
+
+    # 3. ⏳ 其他潛在標的 (除前 5 名外)
+    other_potential = potential[5:]
+    if other_potential:
+        st.markdown("## ⏳ 其他潛在伏擊標的 (Potential)")
+        for stock in other_potential:
+            ticker = stock['ticker']
+            name = stock.get('name', ticker)
+            upside = stock.get('upside_pct', 0) * 100
+            rr = stock.get('rr_ratio', 0)
+            label = f"🟡 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | :orange[未成形]"
+            with st.expander(label):
+                m1, m2, m3, m4 = st.columns(4)
+                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
 
 with tab2:
     st.markdown("### 📂 歷史成形標的回顧 & 2026 回測成效")
-    st.info("※ 歷史統計將根據當前「策略模式」自動過濾結果。")
     
+    # 🏆 策略評價區
+    if is_conservative_only:
+        st.success("🏆 **穩健型策略評價**：僅追蹤 EMA 斜率向上且盈虧比 > 1.2 的高品質信號。雖然交易頻率較低，但能有效過濾掉 2026 年初市場劇烈波動中的『結構假突破』案例，適合追求長期穩定成長的帳戶。")
+    else:
+        st.info("💡 **標準型策略評價**：全方位監控所有符合 SMC 結構與 Vegas 通道的標的。在強多頭市場中能捕捉到更多二、三線補漲標的，但需注意在市場修正式回檔中可能面臨較多止損。")
+
     history_file = 'data/triggered_records.json'
     if os.path.exists(history_file):
         try:
@@ -200,7 +231,7 @@ with tab2:
                     df_display.columns = ["日期", "代號", "名稱", "進場價", "目標價", "停損價", "最終成效"]
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ 目前模式下尚無歷史紀錄。")
+                    st.warning("⚠️ 穩健模式下 2026 回測紀錄較為稀少（追求品質），請切換模式對比。")
             else: st.info("目前尚無紀錄。")
         except Exception as e: st.error(f"讀取紀錄出錯: {e}")
     else:
