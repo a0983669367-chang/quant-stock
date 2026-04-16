@@ -44,11 +44,6 @@ st.markdown("""
         padding: 20px !important;
         border-radius: 0 0 12px 12px;
     }
-    /* 特色標題顏色 */
-    .highlight-text {
-        color: #fbbf24;
-        font-weight: 800;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -67,10 +62,20 @@ is_conservative_only = "穩健型" in strategy_mode
 # 透過 Streamlit 原生機制實作即時掃描與快取
 @st.cache_data(ttl=3600, show_spinner="🤖 正在執行全市場掃描 (預計 20-30 秒)...")
 def get_latest_signals():
+    # 確保資料夾存在
+    os.makedirs('data', exist_ok=True)
+    if os.path.exists('data/signals.json'):
+        try:
+            with open('data/signals.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: pass
+    
+    # 若無檔案則執行掃描
     data = data_fetcher.run_analysis()
     return data if data else []
 
 def refresh_data():
+    data_fetcher.run_analysis()
     st.cache_data.clear()
     st.rerun()
 
@@ -91,104 +96,103 @@ with st.expander("📖 系統原理與使用說明 (新手必讀)"):
     
     ---
     ### 策略模式說明
-    *   **🟢 穩健型**：額外要求 **EMA 144 斜率向上**、**盈虧比 > 1.2** 且 **最近買盤強於平均**，適合追求穩定。
-    *   **🔵 標準型**：只要結構符合即發出信號，捕捉更多潛在契機。
+    *   **🟢 穩健型**：要求 **EMA 144 斜率 > 0**、**盈虧比 > 1.2** 且 **量能確認**，排除震盪盤。
+    *   **🔵 標準型**：只要結構符合即發出信號，捕捉更多補漲契機。
     """)
 
 # 取得資料
 all_signals = get_latest_signals()
 
-# 根據模式過濾
-if is_conservative_only:
-    signals = [s for s in all_signals if s.get('is_conservative', False)]
-else:
-    signals = all_signals
-
-if not signals:
-    if is_conservative_only:
-        st.warning("🎯 目前無符合「穩健型」條件的標的，建議切換至「標準型」查看，或等待市場結構修正。")
-    else:
-        st.info("🎯 今日無符合條件之標的。")
-    st.stop()
-else:
-    mode_text = "穩健型" if is_conservative_only else "標準型"
-    st.success(f"🔥 {mode_text}掃描完成！為您精選出 {len(signals)} 檔符合結構的標的！")
-
 # 頁面分頁排版
 tab1, tab2 = st.tabs(["📊 實時監控", "📂 歷史成形回顧 & 2026 回測成效"])
 
 with tab1:
-    triggered = [s for s in signals if s['status'] == 'Triggered']
-    potential = [s for s in signals if s['status'] == 'Potential']
-    
-    # 潛在標的排序：優先顯示 RR 與 Upside 較高的標的
-    potential = sorted(potential, key=lambda x: (x.get('rr_ratio', 0), x.get('upside_pct', 0)), reverse=True)
-    
-    # 1. 🎖️ 本日最優 5 檔伏擊標的 (精選區)
-    if potential:
-        st.markdown("## 🎖️ 本日最優 5 檔優化伏擊標的")
-        top_5 = potential[:5]
-        for stock in top_5:
-            ticker = stock['ticker']
-            name = stock.get('name', ticker)
-            upside = stock.get('upside_pct', 0) * 100
-            rr = stock.get('rr_ratio', 0)
-            label = f"⭐ **{ticker} {name}** | 預期報酬 **+{upside:.1f}%** | 盈虧比 **{rr:.1f}**"
-            with st.expander(label):
-                m1, m2, m3, m4 = st.columns(4)
-                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-                
-                with st.spinner(f"載入 {ticker} 圖表..."):
-                    t_obj = yf.Ticker(ticker)
-                    df = t_obj.history(period='2y')
-                    if not df.empty:
-                        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                        df = df.loc[:, ~df.columns.duplicated()].copy()
-                        df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
-                        df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
-                        fig = go.Figure()
-                        fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
-                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
-                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
-                        fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
-                        st.plotly_chart(fig, use_container_width=True)
+    # 根據模式過濾
+    if is_conservative_only:
+        signals = [s for s in all_signals if s.get('is_conservative', False)]
+        mode_text = "穩健型"
+    else:
+        signals = all_signals
+        mode_text = "標準型"
 
-    # 2. 🔥 已觸發進場帶 (Triggered)
-    if triggered:
-        st.markdown("## 🔥 已觸發進場帶 (Triggered)")
-        for stock in triggered:
-            ticker = stock['ticker']
-            name = stock.get('name', ticker)
-            upside = stock.get('upside_pct', 0) * 100
-            rr = stock.get('rr_ratio', 0)
-            label = f"🟢 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | :green[已成形]"
-            with st.expander(label):
-                m1, m2, m3, m4 = st.columns(4)
-                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-                st.info(f"🏷️ 產業: {stock.get('industry', 'N/A')} | 📊 PE: {stock.get('pe_ratio', 0):.1f}")
+    if not signals:
+        if is_conservative_only:
+            st.warning("🎯 目前無符合「穩健型」條件的標的。建議切換至「標準型」查看，或點擊左側重新掃描。")
+        else:
+            st.info("🎯 今日無符合條件之標的。")
+    else:
+        st.success(f"🔥 {mode_text}掃描完成！為您精選出 {len(signals)} 檔符合結構的標的！")
+        
+        triggered = [s for s in signals if s['status'] == 'Triggered']
+        potential = [s for s in signals if s['status'] == 'Potential']
+        
+        # 排序
+        potential = sorted(potential, key=lambda x: (x.get('rr_ratio', 0), x.get('upside_pct', 0)), reverse=True)
+        
+        # 1. 🎖️ 本日最優 5 檔伏擊標的
+        if potential:
+            st.markdown("## 🎖️ 本日最優 5 檔優化伏擊標的")
+            top_5 = potential[:5]
+            for stock in top_5:
+                ticker = stock['ticker']
+                name = stock.get('name', ticker)
+                upside = stock.get('upside_pct', 0) * 100
+                rr = stock.get('rr_ratio', 0)
+                label = f"⭐ **{ticker} {name}** | 預期報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                with st.expander(label):
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                    
+                    with st.spinner(f"載入 {ticker} 圖表..."):
+                        t_obj = yf.Ticker(ticker)
+                        df = t_obj.history(period='2y')
+                        if not df.empty:
+                            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+                            df = df.loc[:, ~df.columns.duplicated()].copy()
+                            df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
+                            df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                            fig = go.Figure()
+                            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
+                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
+                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
+                            fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
+                            st.plotly_chart(fig, use_container_width=True)
 
-    # 3. ⏳ 其他潛在標的 (除前 5 名外)
-    other_potential = potential[5:]
-    if other_potential:
-        st.markdown("## ⏳ 其他潛在伏擊標的 (Potential)")
-        for stock in other_potential:
-            ticker = stock['ticker']
-            name = stock.get('name', ticker)
-            upside = stock.get('upside_pct', 0) * 100
-            rr = stock.get('rr_ratio', 0)
-            label = f"🟡 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | :orange[未成形]"
-            with st.expander(label):
-                m1, m2, m3, m4 = st.columns(4)
-                with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+        # 2. 🔥 已觸發進場帶 (Triggered)
+        if triggered:
+            st.markdown("## 🔥 已觸發進場帶 (Triggered)")
+            for stock in triggered:
+                ticker = stock['ticker']
+                name = stock.get('name', ticker)
+                upside = stock.get('upside_pct', 0) * 100
+                rr = stock.get('rr_ratio', 0)
+                label = f"🟢 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                with st.expander(label):
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+
+        # 3. ⏳ 其他潛在標的
+        other_potential = potential[5:]
+        if other_potential:
+            st.markdown("## ⏳ 其他潛在伏擊標的 (Potential)")
+            for stock in other_potential:
+                ticker = stock['ticker']
+                name = stock.get('name', ticker)
+                upside = stock.get('upside_pct', 0) * 100
+                rr = stock.get('rr_ratio', 0)
+                label = f"🟡 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                with st.expander(label):
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
+                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
 
 with tab2:
     st.markdown("### 📂 歷史成形標的回顧 & 2026 回測成效")
@@ -206,12 +210,8 @@ with tab2:
                 records = json.load(f)
             if records:
                 raw_df = pd.DataFrame(records)
-                # 根據模式過濾
                 if is_conservative_only:
-                    if 'is_conservative' in raw_df.columns:
-                        df_h = raw_df[raw_df['is_conservative'] == True].copy()
-                    else:
-                        df_h = pd.DataFrame()
+                    df_h = raw_df[raw_df['is_conservative'] == True].copy() if 'is_conservative' in raw_df.columns else pd.DataFrame()
                 else:
                     df_h = raw_df
                 
@@ -231,7 +231,7 @@ with tab2:
                     df_display.columns = ["日期", "代號", "名稱", "進場價", "目標價", "停損價", "最終成效"]
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ 穩健模式下 2026 回測紀錄較為稀少（追求品質），請切換模式對比。")
+                    st.warning("⚠️ 穩健模式下紀錄較少，請切換模式對比。")
             else: st.info("目前尚無紀錄。")
         except Exception as e: st.error(f"讀取紀錄出錯: {e}")
     else:
