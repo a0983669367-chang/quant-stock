@@ -76,26 +76,12 @@ try:
 except ImportError:
     import pytz # fallback
     
-st.title("📈 台股 SMC x Vegas 百大流動性股全掃描")
-st.markdown("每日 08:30 自動運算，從台股市值前 150 大流動性優勢標的，精選符合 **長線多頭 (Vegas)** 與 **價格回測支撐區 (SMC OB+FVG)** 的 **Top 5 強勢股**。")
+st.title("📈 全球期貨指標 SMC x Vegas 戰情室")
+st.markdown("針對全球權重指數 (NQ, ES, YM, NKD, A50) 進行 SMC 聰明錢結構與 Vegas 通道分析。報價來源為 yfinance (約 15 分鐘延遲)。")
 
-def get_cutoff_key():
-    """ 取得台灣時間每日 08:30 為界線的快取 Key """
-    try:
-        tw_tz = ZoneInfo("Asia/Taipei")
-    except:
-        import pytz
-        tw_tz = pytz.timezone("Asia/Taipei")
-        
-    now_tw = datetime.datetime.now(tw_tz)
-    cutoff = now_tw.replace(hour=8, minute=30, second=0, microsecond=0)
-    if now_tw < cutoff:
-        cutoff -= datetime.timedelta(days=1)
-    return cutoff.strftime("%Y%m%d")
-
-# 透過 Streamlit @st.cache_data 原生機制，只要 cutoff_key 變了（跨過每日 08:30），就會自動強制重新掃描！
-@st.cache_data(show_spinner="🤖 系統偵測到已超過每日 08:30，正在進行智慧全市場掃描 (約需 20-30 秒)...")
-def get_latest_signals(cutoff_key):
+# 透過 Streamlit @st.cache_data 原生機制，實作即時掃描與 15 分鐘快取
+@st.cache_data(ttl=900, show_spinner="🤖 正在分析全球期貨最新價格結構 (大約需要 15-20 秒)...")
+def get_latest_futures_signals():
     try:
         data_fetcher.run_analysis()
         with open('data/signals.json', 'r') as f:
@@ -103,8 +89,7 @@ def get_latest_signals(cutoff_key):
     except:
         return []
 
-cutoff_date_key = get_cutoff_key()
-signals = get_latest_signals(cutoff_date_key)
+signals = get_latest_futures_signals()
 
 col_btn, _ = st.columns([1, 2])
 with col_btn:
@@ -117,24 +102,14 @@ is_fallback_mode = False
 if signals and signals[0].get('is_fallback'):
     is_fallback_mode = True
 
-if is_fallback_mode:
-    st.warning(f"⚠️ 今日無完美觸發進場標的，系統啟動備用機制，推薦 {len(signals)} 檔【潛力觀察名單】供參：")
+if signals:
+    st.success(f"🔥 全球市場掃描完成！共發現 {len(signals)} 檔符合趨勢指標標的！")
 else:
-    if not signals:
-        st.info("目前無任何標的觸發信號。")
-    else:
-        st.success(f"🔥 最新掃描完成！為您精選出 {len(signals)} 檔最強勢潛力標的！")
+    st.info("目前無任何指標觸發，市場可能處於震盪或過於極端。")
 
 display_stocks = signals
 
-# 讀取歷史資料
-history_data = {}
-if os.path.exists('data/history.json'):
-    try:
-        with open('data/history.json', 'r') as f:
-            history_data = json.load(f)
-    except:
-        pass
+# 移除歷史資料載入邏輯
 
 def render_dashboard(display_stocks, key_prefix):
     if not display_stocks:
@@ -148,32 +123,7 @@ def render_dashboard(display_stocks, key_prefix):
         st.session_state[session_key] = display_stocks[0]['ticker'] if display_stocks else None
 
     with col1:
-        st.subheader("📋 強勢股清單")
-        
-        # 準備 Excel (CSV) 匯出資料
-        try:
-            df_export = pd.DataFrame(display_stocks)
-            rename_map = {
-                'ticker': '股票代號', 'company_name': '公司名稱', 'sector': '產業',
-                'entry_zone': '進場區間', 'stop_loss': '停損價', 'target1': '理想停利價',
-                'upside_pct': '潛在報酬率', 'current_ic': '當前預測勝率 (IC)', 'description': '業務說明'
-            }
-            df_export = df_export.rename(columns=rename_map)
-            export_cols = [v for k, v in rename_map.items()]
-            available_cols = [c for c in export_cols if c in df_export.columns]
-            
-            # 將字串手動編碼為 utf-8-sig bytes，避免 Streamlit 輸出預設無 BOM 的 UTF-8 導致 Windows 亂碼
-            csv_string = df_export[available_cols].to_csv(index=False)
-            csv_bytes = csv_string.encode('utf-8-sig')
-            
-            st.download_button(
-                label="⬇️ 匯出此名單至 Excel (CSV檔)",
-                data=csv_bytes,
-                file_name=f"SMC_選股名單_{key_prefix}.csv",
-                mime="text/csv"
-            )
-        except Exception as e:
-            pass
+        st.subheader("📋 指標訊號清單")
             
     for stock in display_stocks:
         ticker = stock['ticker']
@@ -298,21 +248,7 @@ def render_dashboard(display_stocks, key_prefix):
 
             st.plotly_chart(fig, use_container_width=True)
 
-# 頁面排版：標籤頁
-tab_main, tab_history = st.tabs(["🔥 今日最新推薦", "📚 歷史回顧寶庫"])
+            st.plotly_chart(fig, use_container_width=True)
 
-with tab_main:
-    render_dashboard(signals, "main")
-
-with tab_history:
-    if not history_data:
-        st.info("目前尚無歷史紀錄。請先執行過幾次掃描後再來查看！")
-    else:
-        # 取得所有可用日期，最新日期排最前
-        available_dates = sorted(list(history_data.keys()), reverse=True)
-        selected_date = st.selectbox("📅 選擇歷史日期", available_dates)
-        
-        if selected_date:
-            st.markdown(f"### {selected_date} 選股回顧")
-            history_signals = history_data[selected_date]
-            render_dashboard(history_signals, f"hist_{selected_date}")
+# 直接呼叫渲染儀表板佈局
+render_dashboard(signals, "main")

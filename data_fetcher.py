@@ -8,19 +8,22 @@ import concurrent.futures
 import requests
 from bs4 import BeautifulSoup
 
-# 精選上市櫃前 150 大流動性佳大中型股
+# 全球指標性海外期貨 (yfinance 延遲 15min)
 UNIVERSE = [
-    '2330.TW', '2317.TW', '2454.TW', '2308.TW', '2382.TW', '2881.TW', '2882.TW', '2412.TW', '2891.TW', '2886.TW',
-    '3231.TW', '2884.TW', '1216.TW', '2002.TW', '2892.TW', '2885.TW', '2303.TW', '2890.TW', '2395.TW', '3711.TW',
-    '2880.TW', '2883.TW', '5880.TW', '2887.TW', '2912.TW', '1303.TW', '2357.TW', '2324.TW', '2379.TW', '3045.TW',
-    '1301.TW', '2301.TW', '1101.TW', '3034.TW', '2207.TW', '2345.TW', '2356.TW', '4938.TW', '2888.TW', '2603.TW', 
-    '2609.TW', '2615.TW', '1590.TW', '5871.TW', '3008.TW', '6669.TW', '3661.TW', '3481.TW', '2409.TW', '1326.TW',
-    '2353.TW', '1304.TW', '1402.TW', '2105.TW', '2313.TW', '2352.TW', '2377.TW', '2383.TW', '6415.TW', '1504.TW',
-    '3017.TW', '3036.TW', '3324.TW', '3532.TW', '4958.TW', '6269.TW', '6239.TW', '8069.TWO', '8299.TWO', '3105.TWO',
-    '6488.TWO', '5483.TWO', '3529.TWO', '5347.TWO', '6147.TWO', '8046.TWO', '6446.TWO', '8436.TW', '9904.TW', '9910.TW',
-    '9914.TW', '9921.TW', '9941.TW', '3363.TW', '2354.TW', '6282.TW', '8041.TW', '6138.TW', '6451.TW', '1519.TW',
-    '1513.TW', '1514.TW', '1605.TW', '1503.TW', '2360.TW', '2385.TW', '2542.TW', '2618.TW', '2610.TW', '3037.TW'
+    'NQ=F',  # 納斯達克 100
+    'ES=F',  # 標普 500
+    'YM=F',  # 道瓊工業
+    'NKD=F', # 日經 225
+    'FTW=F'  # 富時中國 A50
 ]
+
+FUTURES_METADATA = {
+    'NQ=F': {'name': '納斯達克 100 期貨 (Nasdaq)', 'sector': '指數期貨', 'desc': '全球科技藍籌股領航指標，波動劇烈適合波段操作。'},
+    'ES=F': {'name': '標普 500 期貨 (S&P 500)', 'sector': '指數期貨', 'desc': '全美前 500 大市值權重，全球資產配置最核心指標。'},
+    'YM=F': {'name': '道瓊期貨 (Dow Jones)', 'sector': '指數期貨', 'desc': '包含 30 檔具備代表性的商業巨頭，歷史最悠久的成熟市場指標。'},
+    'NKD=F': {'name': '日經 225 期貨 (Nikkei)', 'sector': '指數期貨', 'desc': '反應日本主要上市企業表現，亞太區龍頭量化交易標的。'},
+    'FTW=F': {'name': '中國 A50 期貨 (A50)', 'sector': '指數期貨', 'desc': '追蹤中國 A 股流通市值最大 50 檔企業，受政策與外資高度影響。'}
+}
 
 def get_swing_lows(df, window=3):
     swing_lows = []
@@ -38,26 +41,9 @@ def get_swing_highs(df, window=5):
             swing_highs.append(i)
     return swing_highs
 
-def get_tw_stock_info(ticker):
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        res = requests.get(f'https://tw.stock.yahoo.com/quote/{ticker}/profile', headers=headers, timeout=5)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        strings = list(soup.stripped_strings)
-        
-        name, sector, desc = '未知', '未知', '無'
-        try:
-            idx = strings.index('公司名稱')
-            name = strings[idx+1]
-        except: pass
-        
-        try:
-            idx = strings.index('產業類別')
-            sector = strings[idx+1]
-        except: pass
-        
-        try:
-            idx = strings.index('主要經營業務')
+def get_futures_info(ticker):
+    meta = FUTURES_METADATA.get(ticker, {'name': ticker, 'sector': '未知', 'desc': '無'})
+    return meta['name'], meta['sector'], meta['desc']
             desc = strings[idx+1]
             if desc == '配股資訊': desc = '無'
         except: pass
@@ -262,71 +248,30 @@ def run_analysis():
             # print(f"Error {ticker}: {e}")
             continue
                 
-    # 過濾出正宗觸發股
-    triggered = [r for r in results if r.get('trigger')]
-    
+    # 為所有掃描成功的標的補充中文資料
     final_list = []
-    if len(triggered) > 0:
-        # 有觸發股，依照預期報酬與趨勢強度挑選最強的前五名
-        sorted_results = sorted(triggered, key=lambda x: (x.get('upside_pct', 0), x.get('ema_strength', 0)), reverse=True)
-        final_list = sorted_results[:5]
-    else:
-        # 秋後算帳，沒有觸發股，啟動 Fallback 機制
-        fallback_list = []
+    for res in results:
+        t = res['ticker']
+        name, sector, desc = get_futures_info(t)
+        res['company_name'] = name
+        res['sector'] = sector
+        res['description'] = desc
         
-        # 情境 1：SMC 已成型但在等待回測
-        smc_wait_list = [r for r in results if r.get('is_vegas_bullish') and r.get('ob') and r.get('fvg') and not r.get('trigger')]
-        
-        if len(smc_wait_list) > 0:
-            # 以預期報酬排序
-            smc_wait_list = sorted(smc_wait_list, key=lambda x: x.get('upside_pct', 0), reverse=True)
-            for r in smc_wait_list:
-                r['is_fallback'] = True
-                r['fallback_reason'] = "SMC 買盤結構已佈局完成，長線做多確立。惟目前股價尚未跌入最佳買盤區，強烈建議列為優先伏擊觀察股，待拉回碰觸買區即為飆股候選。"
-                fallback_list.append(r)
-                
-        # 如果情境 1 挑不滿 3 檔，用情境 2 補滿
-        if len(fallback_list) < 3:
-            # 尋找 Vegas 強勢動能股
-            strong_trend_list = [r for r in results if r.get('is_vegas_bullish') and r.get('ticker') not in [f.get('ticker') for f in fallback_list]]
-            strong_trend_list = sorted(strong_trend_list, key=lambda x: x.get('ema_strength', 0), reverse=True)
+        # 期貨波動大，如果沒有觸發 trigger，我們依然把它放進 list 供觀察，只是標註為 fallback
+        if not res.get('trigger'):
+            res['is_fallback'] = True
+            res['fallback_reason'] = "SMC 買盤區間已算出，目前股價尚未進入最佳買點，建議列為優先伏擊對象。"
             
-            for r in strong_trend_list:
-                r['is_fallback'] = True
-                r['fallback_reason'] = "目前市場無完美 SMC 買盤成型，此標的為當前 Vegas 均線多頭爆發力最強之個股，屬極強動能觀察名單。"
-                fallback_list.append(r)
-                if len(fallback_list) >= 3:
-                    break
-                    
-        final_list = fallback_list[:3]
-
-    # 追加中文公司資料 (只針對前幾名)
-    for r in final_list:
-        info = get_tw_stock_info(r['ticker'])
-        r['company_name'] = info['company_name']
-        r['sector'] = info['sector']
-        r['description'] = info['description']
-
+        final_list.append(res)
+    
+    # 依照預期報酬排序
+    final_list = sorted(final_list, key=lambda x: x.get('upside_pct', 0), reverse=True)
+    
     os.makedirs('data', exist_ok=True)
     with open('data/signals.json', 'w') as f:
         json.dump(final_list, f, indent=4)
         
-    history_file = 'data/history.json'
-    history_data = {}
-    if os.path.exists(history_file):
-        try:
-            with open(history_file, 'r') as f:
-                history_data = json.load(f)
-        except:
-            pass
-            
-    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
-    history_data[today_str] = final_list
-    
-    with open(history_file, 'w') as f:
-        json.dump(history_data, f, indent=4)
-        
-    print(f"[{datetime.datetime.now()}] Analysis complete. Saved Top 5 to data/signals.json and data/history.json")
+    print(f"[{datetime.datetime.now()}] Futures Analysis complete. Saved to data/signals.json")
 
 if __name__ == "__main__":
     run_analysis()
