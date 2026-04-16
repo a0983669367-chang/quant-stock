@@ -238,8 +238,22 @@ def run_analysis():
                 if res.get('ema144') and res.get('ema576'):
                     ema_strength = (res['ema144'] - res['ema576']) / res['ema576']
                     
+                # 計算當前預測勝率 (Current IC)
+                try:
+                    df_ic = df.dropna(subset=['Close']).copy()
+                    df_ic['EMA_144'] = df_ic['Close'].ewm(span=144, adjust=False).mean()
+                    df_ic['EMA_576'] = df_ic['Close'].ewm(span=576, adjust=False).mean()
+                    df_ic['Future_Return'] = df_ic['Close'].shift(-5) / df_ic['Close'] - 1
+                    df_ic['Vegas_Strength'] = (df_ic['EMA_144'] - df_ic['EMA_576']) / df_ic['EMA_576']
+                    rolling_ic = df_ic['Vegas_Strength'].rolling(window=60).corr(df_ic['Future_Return'])
+                    # dropna 以確保取得最近期的那筆有效資料
+                    current_ic = float(rolling_ic.dropna().iloc[-1]) if not rolling_ic.dropna().empty else 0.0
+                except:
+                    current_ic = 0.0
+                    
                 res['upside_pct'] = upside_pct
                 res['ema_strength'] = ema_strength
+                res['current_ic'] = current_ic
                 
                 # 過濾掉潛在報酬率小於 10% 的個股
                 if upside_pct >= 0.1:

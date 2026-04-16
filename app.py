@@ -156,7 +156,7 @@ def render_dashboard(display_stocks, key_prefix):
             rename_map = {
                 'ticker': '股票代號', 'company_name': '公司名稱', 'sector': '產業',
                 'entry_zone': '進場區間', 'stop_loss': '停損價', 'target1': '理想停利價',
-                'upside_pct': '潛在報酬率', 'description': '業務說明'
+                'upside_pct': '潛在報酬率', 'current_ic': '當前預測勝率 (IC)', 'description': '業務說明'
             }
             df_export = df_export.rename(columns=rename_map)
             export_cols = [v for k, v in rename_map.items()]
@@ -191,7 +191,14 @@ def render_dashboard(display_stocks, key_prefix):
         
         desc_html = f'<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);"><div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div><div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div></div>' if desc and desc != '無' else ''
         sector_html = f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''
-        html = f'<div class="stock-card"><h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;"><span style="color:#60a5fa;">{ticker}</span><span>{c_name}</span>{sector_html}</h2><div class="metric-row"><div class="metric"><span class="metric-label">建議進場區間</span><span class="metric-value buy-zone">{entry}</span></div><div class="metric"><span class="metric-label">潛在報酬空間</span><span class="metric-value potential">+{upside:.1f}%</span></div></div><div class="metric-row"><div class="metric"><span class="metric-label">停利目標(BSL)</span><span class="metric-value target-price">{target_str}</span></div><div class="metric"><span class="metric-label">防守停損(OB Low)</span><span class="metric-value stop-loss">{sl_str}</span></div></div>{desc_html}</div>'
+        
+        # IC 評分呈現邏輯
+        ic_val = stock.get('current_ic', 0)
+        ic_color = "#34d399" if ic_val >= 0.05 else ("#f87171" if ic_val <= -0.05 else "#94a3b8")
+        ic_text = f"{ic_val:+.3f}"
+        ic_html = f'<div style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;"><span style="color: #94a3b8; font-size: 12px;">當前預測勝率 (IC)</span><span style="color: {ic_color}; font-weight: 700; font-size: 14px;">{ic_text}</span></div>'
+
+        html = f'<div class="stock-card"><h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;"><span style="color:#60a5fa;">{ticker}</span><span>{c_name}</span>{sector_html}</h2><div style="margin-bottom: 16px;">{ic_html}</div><div class="metric-row"><div class="metric"><span class="metric-label">建議進場區間</span><span class="metric-value buy-zone">{entry}</span></div><div class="metric"><span class="metric-label">潛在報酬空間</span><span class="metric-value potential">+{upside:.1f}%</span></div></div><div class="metric-row"><div class="metric"><span class="metric-label">停利目標(BSL)</span><span class="metric-value target-price">{target_str}</span></div><div class="metric"><span class="metric-label">防守停損(OB Low)</span><span class="metric-value stop-loss">{sl_str}</span></div></div>{desc_html}</div>'
         
         if stock.get('is_fallback') and stock.get('fallback_reason'):
             reason = stock['fallback_reason']
