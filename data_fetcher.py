@@ -6,7 +6,7 @@ import os
 import datetime
 import concurrent.futures
 
-# 台股前 150 大市值與熱門標的 (包含上市 0050/0056 成分股與櫃買熱門股)
+# 台股前 150 大市值與熱門標的
 UNIVERSE = [
     '2330.TW', '2317.TW', '2454.TW', '2308.TW', '2382.TW', '2881.TW', '2882.TW', '2412.TW', '2891.TW', '2886.TW',
     '3231.TW', '2884.TW', '1216.TW', '2002.TW', '2892.TW', '2885.TW', '2303.TW', '2890.TW', '2395.TW', '3711.TW',
@@ -19,6 +19,13 @@ UNIVERSE = [
     '9914.TW', '9921.TW', '9941.TW', '3363.TW', '2354.TW', '6282.TW', '8041.TW', '6138.TW', '6451.TW', '1519.TW',
     '1513.TW', '1514.TW', '1605.TW', '1503.TW', '2360.TW', '2385.TW', '2542.TW', '2618.TW', '2610.TW', '3037.TW'
 ]
+
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 def get_swing_lows(df, window=3):
     swing_lows = []
@@ -37,89 +44,76 @@ def get_swing_highs(df, window=5):
     return swing_highs
 
 def calculate_smc_and_vegas(ticker):
-    # 下載歷史資料 (Vegas 至少需要 676 天，因此選 3y)
-    df = yf.download(ticker, period='3y', progress=False)
-    if df.empty:
+    try:
+        t_obj = yf.Ticker(ticker)
+        df = t_obj.history(period='3y', raise_errors=False)
+    except:
         return None
         
-    # 最新版本的 yfinance 可能會回傳 MultiIndex columns
+    if df.empty: return None
+        
+    # Standardize columns (history() usually returns flat, but let's be robust)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
-
-    # 確保資料有 High, Low, Close
-    if 'Close' not in df.columns:
-        return None
     
-    # 填補空缺值
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+
+    # Ensure necessary columns are Series to avoid downstream issues
+    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+        if col in df.columns:
+            if isinstance(df[col], pd.DataFrame):
+                df[col] = df[col].iloc[:, 0]
+    
+    if 'Close' not in df.columns: return None
     df.ffill(inplace=True)
 
-    # 計算 Vegas 通道
+    # Technical Indicators
     df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
     df['EMA_169'] = df['Close'].ewm(span=169, adjust=False).mean()
     df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
     df['EMA_676'] = df['Close'].ewm(span=676, adjust=False).mean()
+    df['RSI'] = calculate_rsi(df['Close'])
+    df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
 
-    # 擷取近期的 K 棒供運算 (約半年)
     df_recent = df.tail(150).copy()
-    if len(df_recent) < 20:
-        return None
+    if len(df_recent) < 20: return None
 
     latest = df_recent.iloc[-1]
     is_vegas_bullish = latest['EMA_144'] > latest['EMA_576']
+    rsi_val = float(latest['RSI'])
+    vol_ratio = float(latest['Volume'] / latest['Vol_MA5']) if latest['Vol_MA5'] > 0 else 1.0
 
     recent_lows = get_swing_lows(df_recent, window=3)
-    
     valid_ob = None
     ob_start_date = None
     valid_fvg = None
     fvg_start_date = None
     
-    # 從最新波段低點開始檢查
     for sl_idx in reversed(recent_lows):
-        # 限定: 尋找過去 20 天內的波段低點
-        if len(df_recent) - sl_idx > 20:
-            continue
+        if len(df_recent) - sl_idx > 25: continue
             
-        # 尋找造成波段低點前的最後一根陰線 (Close < Open) -> OB
         ob_idx = None
         for i in range(sl_idx, max(-1, sl_idx-10), -1):
             if df_recent['Close'].iloc[i] < df_recent['Open'].iloc[i]:
                 ob_idx = i
                 break
         
-        if ob_idx is None:
-            continue
-            
-        ob_high = float(df_recent['High'].iloc[ob_idx])
-        ob_low = float(df_recent['Low'].iloc[ob_idx])
+        if ob_idx is None: continue
+        ob_high, ob_low = float(df_recent['High'].iloc[ob_idx]), float(df_recent['Low'].iloc[ob_idx])
         
-        # 尋找 OB 之後 3 日內的 Bullish FVG
-        # FVG 邏輯: 第 1 根的 High < 第 3 根的 Low
         fvg_found = False
-        fvg_high = None
-        fvg_low = None
-        fvg_idx = None
-        
-        for j in range(ob_idx, min(len(df_recent)-2, ob_idx + 4)):
+        fvg_high, fvg_low, fvg_idx = None, None, None
+        for j in range(ob_idx, min(len(df_recent)-2, ob_idx + 5)):
             c1_high = df_recent['High'].iloc[j]
             c3_low = df_recent['Low'].iloc[j+2]
             if c3_low > c1_high:
                 fvg_found = True
-                fvg_high = float(c3_low)
-                fvg_low = float(c1_high)
-                fvg_idx = j
+                fvg_high, fvg_low, fvg_idx = float(c3_low), float(c1_high), j
                 break
                 
         if fvg_found:
-            # 驗證是否與 EMA 144~169 的通道有重疊
-            ob_fvg_min = min(ob_low, fvg_low)
-            ob_fvg_max = max(ob_high, fvg_high)
-            
-            ema144 = latest['EMA_144']
-            ema169 = latest['EMA_169']
-            ema_min = min(ema144, ema169)
-            ema_max = max(ema144, ema169)
-            
+            ob_fvg_min, ob_fvg_max = min(ob_low, fvg_low), max(ob_high, fvg_high)
+            ema_min, ema_max = min(latest['EMA_144'], latest['EMA_169']), max(latest['EMA_144'], latest['EMA_169'])
             overlap = max(0, min(ob_fvg_max, ema_max) - max(ob_fvg_min, ema_min))
             if overlap > 0:
                 valid_ob = (ob_high, ob_low)
@@ -128,98 +122,96 @@ def calculate_smc_and_vegas(ticker):
                 fvg_start_date = df_recent.index[fvg_idx].strftime('%Y-%m-%d')
                 break
 
-    # 流動性池 Liquidity Pools (未被突破的前高)
     swing_highs = get_swing_highs(df_recent, window=5)
-    targets = []
-    for sh_idx in reversed(swing_highs):
-        sh_val = float(df_recent['High'].iloc[sh_idx])
-        if sh_idx == len(df_recent) - 1 or df_recent['High'].iloc[sh_idx+1:].max() <= sh_val:
-            targets.append(sh_val)
-            
-    # 等高點強流動性池 (EQH)
-    eqh_pairs = []
-    for i in range(len(targets)):
-        for j in range(i+1, len(targets)):
-            if abs(targets[i] - targets[j]) / targets[i] <= 0.005:
-                eqh_pairs.append((targets[i], targets[j]))
+    targets = [float(df_recent['High'].iloc[sh_idx]) for sh_idx in reversed(swing_highs) if sh_idx == len(df_recent) - 1 or df_recent['High'].iloc[sh_idx+1:].max() <= df_recent['High'].iloc[sh_idx]]
+    target1 = targets[0] if targets else None
 
-    target1 = targets[0] if len(targets) > 0 else None
-    target2 = max(eqh_pairs[0]) if eqh_pairs else None
-
-    # 觸發條件
-    trigger = False
+    # Trigger Logic: "Triggered" (買點成形) vs "Potential" (尚未成形)
+    status = "None"
     stop_loss = None
     entry_zone = None
     
     if is_vegas_bullish and valid_ob:
-        if valid_fvg:
-            entry_top = max(valid_ob[0], valid_fvg[0])
-            entry_bottom = min(valid_ob[1], valid_fvg[1])
-            # 檢查最新一根是否跌入區間內且尚未跌破 OB 最低價
-            if float(latest['Low']) <= entry_top and float(latest['Close']) >= valid_ob[1]:
-                trigger = True
-                stop_loss = valid_ob[1]
-                entry_zone = f"{entry_bottom:.2f} - {entry_top:.2f}"
+        entry_top = max(valid_ob[0], valid_fvg[0] if valid_fvg else valid_ob[0])
+        entry_bottom = min(valid_ob[1], valid_fvg[1] if valid_fvg else valid_ob[1])
+        entry_zone = f"{entry_bottom:.2f} - {entry_top:.2f}"
+        stop_loss = entry_bottom * 0.98
+
+        if float(latest['Low']) <= entry_top and float(latest['Close']) >= entry_bottom:
+            status = "Triggered"
+        elif float(latest['Close']) > entry_top:
+            status = "Potential"
+
+    if status == "None": return None
+
+    # Fetch Fundamentals for candidates
+    pe_ratio, div_yield, name, industry, market_cap = 0, 0, ticker, "N/A", 0
+    try:
+        info = t_obj.info
+        pe_ratio = info.get('trailingPE', 0)
+        div_yield = info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0
+        name = info.get('longName', ticker)
+        industry = info.get('industry', 'N/A')
+        market_cap = info.get('marketCap', 0)
+    except: pass
 
     return {
         "ticker": ticker,
-        "trigger": trigger,
+        "name": name,
+        "industry": industry,
+        "market_cap": float(market_cap),
+        "status": str(status),
         "is_vegas_bullish": bool(is_vegas_bullish),
-        "ema144": float(latest['EMA_144']),
-        "ema576": float(latest['EMA_576']),
-        "ob": valid_ob,
-        "ob_date": ob_start_date,
-        "fvg": valid_fvg,
-        "fvg_date": fvg_start_date,
-        "target1": target1,
-        "target2": target2,
-        "stop_loss": stop_loss,
+        "rsi": float(rsi_val),
+        "vol_ratio": float(vol_ratio),
+        "pe_ratio": float(pe_ratio),
+        "div_yield": float(div_yield),
+        "ob": [float(x) for x in valid_ob] if valid_ob else None,
+        "fvg": [float(x) for x in valid_fvg] if valid_fvg else None,
+        "target1": float(target1) if target1 else None,
+        "stop_loss": float(stop_loss) if stop_loss else None,
         "entry_zone": entry_zone,
-        "latest_close": float(latest['Close'])
+        "latest_close": float(latest['Close']),
+        "upside_pct": float((target1 - latest['Close']) / latest['Close']) if target1 and target1 > latest['Close'] else 0.0
     }
 
-def run_analysis(interval='1d', period='3y'):
-    # 這裡兼容之前的介面，但內部強制執行台股分析邏輯
-    print(f"[{datetime.datetime.now()}] Running Taiwan Stock SMC & Vegas Analysis on {len(UNIVERSE)} symbols...")
+def run_analysis():
+    print(f"[{datetime.datetime.now()}] Scanning {len(UNIVERSE)} Taiwan stocks...")
     results = []
-    
-    def process_ticker(ticker):
-        try:
-            return calculate_smc_and_vegas(ticker)
-        except Exception as e:
-            print(f"Error processing {ticker}: {e}")
-            return None
-
-    # 並行處理大幅增加獲取速度
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        future_to_ticker = {executor.submit(process_ticker, t): t for t in UNIVERSE}
-        for future in concurrent.futures.as_completed(future_to_ticker):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+        futures = {executor.submit(calculate_smc_and_vegas, t): t for t in UNIVERSE}
+        for future in concurrent.futures.as_completed(futures):
             res = future.result()
-            if res and res.get('trigger'):
-                target = res.get('target1')
-                close_price = res.get('latest_close')
-                upside_pct = 0
-                if target and close_price and target > close_price:
-                    upside_pct = (target - close_price) / close_price
-                
-                # 計算趨勢強度 (短期均線帶動多頭的距離)
-                ema_strength = 0
-                if res.get('ema144') and res.get('ema576'):
-                    ema_strength = (res['ema144'] - res['ema576']) / res['ema576']
-                    
-                res['upside_pct'] = upside_pct
-                res['ema_strength'] = ema_strength
-                results.append(res)
-                
-    # 根據預期報酬與趨勢強度挑選最強的前十名 (改為 10 檔增加實用性)
-    sorted_results = sorted(results, key=lambda x: (x.get('upside_pct', 0), x.get('ema_strength', 0)), reverse=True)
-    top_picks = sorted_results[:10]
+            if res: results.append(res)
+    
+    # Sort triggered first, then potential, then by upside
+    sorted_res = sorted(results, key=lambda x: (x['status'] == 'Triggered', x['upside_pct']), reverse=True)
+    top_picks = sorted_res[:15]
 
     os.makedirs('data', exist_ok=True)
-    with open('data/signals.json', 'w') as f:
-        json.dump(top_picks, f, indent=4)
+    # Save current findings
+    with open('data/signals.json', 'w', encoding='utf-8') as f:
+        json.dump(top_picks, f, indent=4, ensure_ascii=False)
+    
+    # Update History
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    history = {}
+    if os.path.exists('data/history.json'):
+        try:
+            with open('data/history.json', 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except: history = {}
+    
+    history[today] = top_picks
+    # Keep last 30 days
+    if len(history) > 30:
+        oldest_dates = sorted(history.keys())[:-30]
+        for d in oldest_dates: history.pop(d)
         
-    print(f"[{datetime.datetime.now()}] Analysis complete. Saved Top picks to data/signals.json")
+    with open('data/history.json', 'w', encoding='utf-8') as f:
+        json.dump(history, f, indent=4, ensure_ascii=False)
+
+    print(f"[{datetime.datetime.now()}] Saved {len(top_picks)} picks to signals.json and history.json")
     return top_picks
 
 if __name__ == "__main__":
