@@ -160,159 +160,95 @@ else:
     st.success(f"🔥 掃描完成！為您精選出 {len(signals)} 檔符合強勢多頭修正結構的標的！")
 
 # 頁面排版
-col1, col2 = st.columns([1, 2])
+triggered = [s for s in signals if s['status'] == 'Triggered']
+potential = [s for s in signals if s['status'] == 'Potential']
 
-# 初始化選股狀態
-if 'selected_ticker' not in st.session_state:
-    st.session_state.selected_ticker = signals[0]['ticker'] if signals else None
+sections = [
+    ("🔥 已觸發進場帶 (Triggered)", triggered, "🟢"),
+    ("⏳ 潛在伏擊標的 (Potential)", potential, "🟡")
+]
 
-with col1:
-    triggered = [s for s in signals if s['status'] == 'Triggered']
-    potential = [s for s in signals if s['status'] == 'Potential']
-    
-    sections = [
-        ("🔥 已觸發進場帶 (Triggered)", triggered, "bg-triggered"),
-        ("⏳ 潛在伏擊標的 (Potential)", potential, "bg-potential")
-    ]
-    
-    for title, list_stocks, badge_class in sections:
-        if list_stocks:
-            st.markdown(f"### {title}")
-            for stock in list_stocks:
-                ticker = stock['ticker']
-                name = stock.get('name', ticker)
-                status_cn = "已成形" if stock['status'] == 'Triggered' else "未成形"
-                industry = stock.get('industry', 'N/A')
-                pe = stock.get('pe_ratio', 0)
-                dy = stock.get('div_yield', 0)
-                entry = stock.get('entry_zone') or "未成型"
-                sl = stock.get('stop_loss') or 0
-                target = stock.get('target1') or 0
-                upside = stock.get('upside_pct', 0) * 100
+for title, list_stocks, icon in sections:
+    if list_stocks:
+        st.markdown(f"## {title}")
+        for stock in list_stocks:
+            ticker = stock['ticker']
+            name = stock.get('name', ticker)
+            industry = stock.get('industry', 'N/A')
+            pe = stock.get('pe_ratio', 0)
+            dy = stock.get('div_yield', 0)
+            price = stock.get('latest_close', 0)
+            entry = stock.get('entry_zone') or "未成型"
+            sl = stock.get('stop_loss') or 0
+            target = stock.get('target1') or 0
+            upside = stock.get('upside_pct', 0) * 100
+            
+            # 建立摺疊標籤文字
+            status_cn = "已成形" if stock['status'] == 'Triggered' else "未成形"
+            label = f"{icon} {ticker} {name} | 現價: {price:.2f} | 預期報酬: +{upside:.1f}% | {status_cn}"
+            
+            with st.expander(label):
+                # 內部排版：上方顯示詳細指標，下方顯示圖表
+                m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+                with m_col1:
+                    st.metric("建議進場位", entry)
+                with m_col2:
+                    st.metric("預期報酬率", f"+{upside:.1f}%")
+                with m_col3:
+                    st.metric("停利修正位", f"{target:.1f}" if target else "-")
+                with m_col4:
+                    st.metric("防守停損位", f"{sl:.1f}" if sl else "-")
                 
-                sl_str = f"{sl:.1f}" if sl else "-"
-                target_str = f"{target:.1f}" if target else "-"
-                pe_str = f"{pe:.1f}" if pe > 0 else "-"
-                dy_str = f"{dy:.1f}%" if dy > 0 else "-"
-                
-                # 顯示樣式 (直接靠左對齊，確保 Markdown 不會誤判為程式碼區塊)
-                html = f"""<div class="stock-card">
-<div class="stock-header">
-<div class="stock-title">
-<h2>{ticker} {name}</h2>
-<div class="industry-tag">🏷️ {industry}</div>
-</div>
-<span class="status-badge {badge_class}">{status_cn}</span>
-</div>
-<div class="price-row">
-<span class="price-label">目前現價</span>
-<span class="price-value">NT$ {stock.get('latest_close', 0):.2f}</span>
-</div>
-<div class="metric-row">
-<div class="metric">
-<span class="metric-label">🎯 建議進場位</span>
-<span class="metric-value buy-zone">{entry}</span>
-</div>
-<div class="metric" style="text-align: right;">
-<span class="metric-label">🚀 預期報酬率</span>
-<span class="metric-value potential-val">+{upside:.1f}%</span>
-</div>
-</div>
-<div class="metric-row">
-<div class="metric">
-<span class="metric-label">📈 停利修正位</span>
-<span class="metric-value target-price">{target_str}</span>
-</div>
-<div class="metric" style="text-align: right;">
-<span class="metric-label">🛡️ 防守停損位</span>
-<span class="metric-value stop-loss">{sl_str}</span>
-</div>
-</div>
-<div class="fundamental-row">
-<div class="f-metric">📊 本益比 <span class="f-val">{pe_str}</span></div>
-<div class="f-metric">💰 殖利率 <span class="f-val">{dy_str}</span></div>
-</div>
-</div>"""
-                st.markdown(html, unsafe_allow_html=True)
-                if st.button(f"📊 結構圖 {ticker}", key=f"btn_{ticker}", use_container_width=True):
-                    st.session_state.selected_ticker = ticker
-                    st.rerun()
+                f_col1, f_col2, f_col3 = st.columns(3)
+                with f_col1:
+                    st.info(f"🏷️ 產業類別: {industry}")
+                with f_col2:
+                    st.info(f"📊 本益比: {pe:.1f}" if pe > 0 else "📊 本益比: -")
+                with f_col3:
+                    st.info(f"💰 殖利率: {dy:.1f}%" if dy > 0 else "💰 殖利率: -")
 
-with col2:
-    selected = st.session_state.selected_ticker
-    if selected:
-        st.subheader(f"📊 {selected} 價格動態與 SMC 預測結構")
-        
-        stock_data = next((s for s in signals if s['ticker'] == selected), None)
-        
-        with st.spinner("繪製 K 線圖中..."):
-            t_obj = yf.Ticker(selected)
-            df = t_obj.history(period="6mo")
-            
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            
-            # Clean up duplicated columns and ensure flat structure
-            df = df.loc[:, ~df.columns.duplicated()].copy()
-            
-            # Robustly extract essential columns as Series
-            for col in ['Open', 'High', 'Low', 'Close']:
-                if col in df.columns:
-                    if isinstance(df[col], pd.DataFrame):
-                        df[col] = df[col].iloc[:, 0]
-            
-            if 'Close' not in df.columns or df.empty:
-                st.error(f"無法獲取 {selected} 的完整數據")
-            else:
-                df.dropna(subset=['Close'], inplace=True)
-                
-                close_s = df['Close']
-                df['EMA_144'] = close_s.ewm(span=144, adjust=False).mean()
-                df['EMA_169'] = close_s.ewm(span=169, adjust=False).mean()
-                df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
-                df['EMA_676'] = close_s.ewm(span=676, adjust=False).mean()
+                with st.spinner(f"正在載入 {ticker} 結構分析圖..."):
+                    # 重新取得該股的完整 DataFrame
+                    t_obj = yf.Ticker(ticker)
+                    df = t_obj.history(period='2y') 
+                    if not df.empty:
+                        # 標準化
+                        if isinstance(df.columns, pd.MultiIndex):
+                            df.columns = df.columns.get_level_values(0)
+                        df = df.loc[:, ~df.columns.duplicated()].copy()
+                        
+                        df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
+                        df['EMA_169'] = df['Close'].ewm(span=169, adjust=False).mean()
+                        df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                        df['EMA_676'] = df['Close'].ewm(span=676, adjust=False).mean()
 
-                fig = go.Figure()
-                open_s = df['Open']
-                high_s = df['High']
-                low_s = df['Low']
+                        fig = go.Figure()
+                        # Candlestick
+                        fig.add_trace(go.Candlestick(
+                            x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
+                            name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
+                        ))
+                        # EMAs
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_169'], mode='lines', name='EMA 169', line=dict(color='#fbbf24', width=1.5)))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['EMA_676'], mode='lines', name='EMA 676', line=dict(color='#8b5cf6', width=1.5)))
 
-                # Candlestick
-                fig.add_trace(go.Candlestick(
-                    x=df.index, open=open_s, high=high_s, low=low_s, close=close_s,
-                    name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
-                ))
+                        # SMC Shapes
+                        if stock.get('ob') and stock.get('ob_date'):
+                            fig.add_shape(type="rect", x0=stock['ob_date'], y0=stock['ob'][1], x1=df.index[-1].strftime('%Y-%m-%d'), y1=stock['ob'][0],
+                                fillcolor="rgba(239, 68, 68, 0.2)", line=dict(width=0), layer="below")
+                        if stock.get('fvg') and stock.get('fvg_date'):
+                            fig.add_shape(type="rect", x0=stock['fvg_date'], y0=stock['fvg'][1], x1=df.index[-1].strftime('%Y-%m-%d'), y1=stock['fvg'][0],
+                                fillcolor="rgba(34, 197, 94, 0.2)", line=dict(width=0), layer="below")
+                        if target:
+                            fig.add_hline(y=target, line_dash="dash", line_color="#cbd5e1", annotation_text="目標位")
 
-                # EMAs
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_169'], mode='lines', name='EMA 169', line=dict(color='#fbbf24', width=1.5)))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_676'], mode='lines', name='EMA 676', line=dict(color='#8b5cf6', width=1.5)))
-
-                # SMC Structures
-                if stock_data:
-                    if stock_data.get('ob') and stock_data.get('ob_date'):
-                        ob_high, ob_low = stock_data['ob']
-                        fig.add_shape(type="rect",
-                            x0=stock_data['ob_date'], y0=ob_low, x1=df.index[-1].strftime('%Y-%m-%d'), y1=ob_high,
-                            fillcolor="rgba(239, 68, 68, 0.2)", line=dict(width=0), layer="below", name="Bullish OB"
+                        fig.update_layout(
+                            template="plotly_dark", height=500, margin=dict(l=0, r=0, t=30, b=0),
+                            xaxis_rangeslider_visible=False, hovermode='x unified'
                         )
-
-                    if stock_data.get('fvg') and stock_data.get('fvg_date'):
-                        fvg_high, fvg_low = stock_data['fvg']
-                        fig.add_shape(type="rect",
-                            x0=stock_data['fvg_date'], y0=fvg_low, x1=df.index[-1].strftime('%Y-%m-%d'), y1=fvg_high,
-                            fillcolor="rgba(34, 197, 94, 0.2)", line=dict(width=0), layer="below", name="Bullish FVG"
-                        )
-
-                    if stock_data.get('target1'):
-                        fig.add_hline(y=stock_data['target1'], line_dash="dash", line_color="#cbd5e1", annotation_text="Target 1 (BSL)")
-
-                fig.update_layout(
-                    template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                    xaxis_rangeslider_visible=False, margin=dict(l=0, r=0, t=30, b=0),
-                    hovermode='x unified', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                st.info("💡 **結構解讀**：紅色方塊代表強勢 OB 支撐，綠色代表 FVG 真實價值缺口。當價格回測這些區間且位於 Vegas 通道上方時，為高勝率伏擊區。")
+                        st.plotly_chart(fig, use_container_width=True)
+                        st.info("💡 **結構解讀**：紅色方塊代表強勢 OB 支撐，綠色代表 FVG 真實價值缺口。當價格回測這些區間且位於 Vegas 通道上方時，為高勝率伏擊區。")
+                    else:
+                        st.warning("無法載入歷史 K 線圖表。")
