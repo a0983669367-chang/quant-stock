@@ -207,63 +207,55 @@ def render_dashboard(display_stocks, key_prefix, chart_interval='1d', chart_peri
         
         stock_data = next((s for s in display_stocks if s['ticker'] == selected), None)
         
-        chart_tab1, chart_tab2 = st.tabs(["🤖 AI 預測結構", "📊 TradingView 實戰圖"])
-        
-        with chart_tab1:
-            try:
-                with st.spinner(f"正在分析全球期貨數據 ({chart_interval})..."):
-                    df = yf.download(selected, period=chart_period, interval=chart_interval, progress=False)
-                    if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = df.columns.get_level_values(0)
-                    df.dropna(subset=['Close'], inplace=True)
+        try:
+            with st.spinner(f"正在分析全球期貨數據 ({chart_interval})..."):
+                df = yf.download(selected, period=chart_period, interval=chart_interval, progress=False)
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                df.dropna(subset=['Close'], inplace=True)
+                
+                close_s = df['Close'].iloc[:, 0] if isinstance(df['Close'], pd.DataFrame) else df['Close']
+                df['EMA_144'] = close_s.ewm(span=144, adjust=False).mean()
+                df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
+
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                                    vertical_spacing=0.03, row_heights=[0.75, 0.25])
+
+                open_s = df['Open'].iloc[:, 0] if isinstance(df['Open'], pd.DataFrame) else df['Open']
+                high_s = df['High'].iloc[:, 0] if isinstance(df['High'], pd.DataFrame) else df['High']
+                low_s = df['Low'].iloc[:, 0] if isinstance(df['Low'], pd.DataFrame) else df['Low']
+
+                fig.add_trace(go.Candlestick(
+                    x=df.index, open=open_s, high=high_s, low=low_s, close=close_s,
+                    name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
+                ), row=1, col=1)
+
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
+
+                if stock_data:
+                    rh = stock_data.get('range_high')
+                    rl = stock_data.get('range_low')
+                    eq = stock_data.get('equilibrium')
                     
-                    close_s = df['Close'].iloc[:, 0] if isinstance(df['Close'], pd.DataFrame) else df['Close']
-                    df['EMA_144'] = close_s.ewm(span=144, adjust=False).mean()
-                    df['EMA_169'] = close_s.ewm(span=169, adjust=False).mean()
-                    df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
-                    df['EMA_676'] = close_s.ewm(span=676, adjust=False).mean()
+                    if rh and rl:
+                        fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rh, x1=df.index[-1], y1=rh, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                        fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rl, x1=df.index[-1], y1=rl, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                        fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=eq, x1=df.index[-1], y1=eq, line=dict(color="rgba(255,255,255,0.2)", width=2, dash="dash"), row=1, col=1)
 
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                                        vertical_spacing=0.03, row_heights=[0.75, 0.25])
+                    if stock_data.get('predicted_zone'):
+                        p_low, p_high = stock_data['predicted_zone']
+                        p_color = "rgba(52, 211, 153, 0.3)" if stock_data['direction'] == "Long" else "rgba(248, 113, 113, 0.3)"
+                        fig.add_shape(type="rect", x0=df.index[-40] if len(df) > 40 else df.index[0], y0=p_low, x1=df.index[-1], y1=p_high, fillcolor=p_color, line=dict(width=0), layer="below", row=1, col=1)
 
-                    open_s = df['Open'].iloc[:, 0] if isinstance(df['Open'], pd.DataFrame) else df['Open']
-                    high_s = df['High'].iloc[:, 0] if isinstance(df['High'], pd.DataFrame) else df['High']
-                    low_s = df['Low'].iloc[:, 0] if isinstance(df['Low'], pd.DataFrame) else df['Low']
+                    if stock_data.get('logical_target'):
+                        fig.add_hline(y=stock_data['logical_target'], line_dash="dash", line_color="#38bdf8", annotation_text="Target", row=1, col=1)
 
-                    fig.add_trace(go.Candlestick(
-                        x=df.index, open=open_s, high=high_s, low=low_s, close=close_s,
-                        name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
-                    ), row=1, col=1)
+                fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, margin=dict(l=0, r=0, t=30, b=0), height=600)
 
-                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
-
-                    if stock_data:
-                        rh = stock_data.get('range_high')
-                        rl = stock_data.get('range_low')
-                        eq = stock_data.get('equilibrium')
-                        
-                        if rh and rl:
-                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rh, x1=df.index[-1], y1=rh, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
-                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rl, x1=df.index[-1], y1=rl, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
-                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=eq, x1=df.index[-1], y1=eq, line=dict(color="rgba(255,255,255,0.2)", width=2, dash="dash"), row=1, col=1)
-
-                        if stock_data.get('predicted_zone'):
-                            p_low, p_high = stock_data['predicted_zone']
-                            p_color = "rgba(52, 211, 153, 0.3)" if stock_data['direction'] == "Long" else "rgba(248, 113, 113, 0.3)"
-                            fig.add_shape(type="rect", x0=df.index[-40] if len(df) > 40 else df.index[0], y0=p_low, x1=df.index[-1], y1=p_high, fillcolor=p_color, line=dict(width=0), layer="below", row=1, col=1)
-
-                        if stock_data.get('logical_target'):
-                            fig.add_hline(y=stock_data['logical_target'], line_dash="dash", line_color="#38bdf8", annotation_text="Target", row=1, col=1)
-
-                    fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, margin=dict(l=0, r=0, t=30, b=0))
-
-                    st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"AI 圖表暫時故障: {str(e)}")
-
-        with chart_tab2:
-            render_tradingview_widget(selected, chart_interval)
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"AI 圖表暫時故障: {str(e)}")
 
 # 使用頁籤切換時框
 tab_daily, tab_hourly = st.tabs(["📅 日線波段預測", "⏱️ 小時級別伏擊"])
