@@ -178,26 +178,24 @@ def run_analysis():
     
     for ticker in UNIVERSE:
         try:
-            # yfinance 批次下載的結構為 MultiIndex [('2330.TW', 'Close'), ...]
-            if len(UNIVERSE) > 1:
-                # 確保不崩潰如果 ticker 沒成功抓到
-                if ticker not in df_all.columns.levels[0]:
-                    continue
+            # 兼容不同 yfinance 回傳結構 (確保能帶入正確的 Ticker 資料)
+            if ticker in df_all.columns.get_level_values(0):
                 df = df_all[ticker].copy()
             else:
-                df = df_all.copy()
+                # 嘗試單獨下載 (做為最後防線)
+                df = yf.download(ticker, period='2y', progress=False)
+                
+            if df.empty: continue
             
-            # yf.download 若部分標的下市可能只有單一 level，這裡確保安全取出
+            # yf.download 回傳若有多重欄位則簡化
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
                 
             res = calculate_smc_and_vegas_df(ticker, df)
-            
             if res:
-                # 預測型不需要過濾報酬率，因為我們是在尋找機會
                 results.append(res)
         except Exception as e:
-            # print(f"Error {ticker}: {e}")
+            print(f"Error analyzing {ticker}: {e}")
             continue
                 
     # 為所有掃描成功的標的補充中文資料
@@ -210,12 +208,11 @@ def run_analysis():
         res['description'] = desc
         final_list.append(res)
     
-    # 依照距離預測區間的遠近排序 (或單純依照 list 順序)
     os.makedirs('data', exist_ok=True)
     with open('data/signals.json', 'w') as f:
         json.dump(final_list, f, indent=4)
         
-    print(f"[{datetime.datetime.now()}] Futures Prediction complete. Saved to data/signals.json")
+    print(f"[{datetime.datetime.now()}] Futures Prediction complete. {len(final_list)} items saved.")
 
 if __name__ == "__main__":
     run_analysis()
