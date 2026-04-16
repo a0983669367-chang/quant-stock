@@ -19,129 +19,34 @@ TV_SYMBOL_MAP = {
     'CL=F': 'NYMEX:CL1!'
 }
 
-def render_unified_chart(ticker, df, stock_data, interval='1d'):
-    """使用 TradingView Lightweight Charts 渲染統一化、包含 AI 標記的圖表"""
-    if df is None or df.empty:
-        st.error("無法取得圖表數據")
-        return
-
-    # 1. 準備 K 線數據
-    df_js = df.reset_index()
-    # 轉換日期為 timestamp (Lightweight Charts 要求秒數)
-    df_js['time'] = df_js['Date'].astype('int64') // 10**9
+def render_tradingview_widget(ticker, interval='D'):
+    """嵌入 TradingView 高級圖表小組件"""
+    tv_symbol = TV_SYMBOL_MAP.get(ticker, ticker)
+    # 將 Yahoo interval 轉換為 TradingView interval
+    tv_interval = 'D' if interval == '1d' else '60'
     
-    # yfinance 回傳的欄位可能是 MultiIndex，強制提取 1D 資料
-    def extract_series(col_name):
-        s = df_js[col_name]
-        return s.iloc[:, 0] if isinstance(s, pd.DataFrame) else s
-
-    candles = []
-    for i, row in df_js.iterrows():
-        candles.append({
-            'time': int(row['time']),
-            'open': float(extract_series('Open')[i]),
-            'high': float(extract_series('High')[i]),
-            'low': float(extract_series('Low')[i]),
-            'close': float(extract_series('Close')[i])
-        })
-
-    # 2. 準備 EMA 數據
-    ema144 = [{'time': int(row['time']), 'value': float(row['EMA_144'])} for i, row in df_js.iterrows() if not pd.isna(row['EMA_144'])]
-    ema576 = [{'time': int(row['time']), 'value': float(row['EMA_576'])} for i, row in df_js.iterrows() if not pd.isna(row['EMA_576'])]
-
-    # 3. 準備 AI 預測色塊 (POI Box)
-    box_data = []
-    box_color = "rgba(52, 211, 153, 0.2)" # 預設多頭綠色
-    box_border = "rgba(52, 211, 153, 0.8)"
-    
-    if stock_data and stock_data.get('predicted_zone'):
-        p_low, p_high = stock_data['predicted_zone']
-        if stock_data['direction'] == "Short":
-            box_color = "rgba(248, 113, 113, 0.2)" # 空頭紅色
-            box_border = "rgba(248, 113, 113, 0.8)"
-        
-        # 色塊顯示在最近的 40 根 K 棒
-        start_idx = max(0, len(df_js) - 40)
-        for i in range(start_idx, len(df_js)):
-            box_data.append({
-                'time': int(df_js.iloc[i]['time']),
-                'value': float(p_high),
-                'bottom': float(p_low)
-            })
-
-    # 4. 目標位 (DOL)
-    target_price = stock_data.get('logical_target') if stock_data else None
-
-    # 5. 組合 JS 程式碼
     html_code = f"""
-    <div id="unified_chart" style="width:100%; height:600px; background:#0f172a; border-radius: 8px; overflow:hidden;"></div>
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-    <script>
-        const chartElement = document.getElementById('unified_chart');
-        const chart = LightweightCharts.createChart(chartElement, {{
-            layout: {{
-                background: {{ color: '#0f172a' }},
-                textColor: '#94a3b8',
-            }},
-            grid: {{
-                vertLines: {{ color: 'rgba(255, 255, 255, 0.05)' }},
-                horzLines: {{ color: 'rgba(255, 255, 255, 0.05)' }},
-            }},
-            rightPriceScale: {{
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-            }},
-            timeScale: {{
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                timeVisible: true,
-                secondsVisible: false,
-            }},
-            crosshair: {{
-                mode: LightweightCharts.CrosshairMode.Normal,
-            }},
-        }});
-
-        const candleSeries = chart.addCandlestickSeries({{
-            upColor: '#22c55e', downColor: '#ef4444', borderVisible: false,
-            wickUpColor: '#22c55e', wickDownColor: '#ef4444'
-        }});
-        candleSeries.setData({json.dumps(candles)});
-
-        // Vegas Channel
-        const line144 = chart.addLineSeries({{ color: '#fcd34d', lineWidth: 1, title: 'EMA 144' }});
-        line144.setData({json.dumps(ema144)});
-        const line576 = chart.addLineSeries({{ color: '#a78bfa', lineWidth: 1, title: 'EMA 576' }});
-        line576.setData({json.dumps(ema576)});
-
-        // AI Predicted Box (Using AreaSeries trick)
-        if ({json.dumps(box_data)}.length > 0) {{
-            const boxSeries = chart.addAreaSeries({{
-                topColor: '{box_color}',
-                bottomColor: 'rgba(0,0,0,0)',
-                lineColor: '{box_border}',
-                lineWidth: 1,
-                priceLineVisible: false,
-            }});
-            // 由於 AreaSeries base 預設在 0，我們需要強行處理下界，或者用兩個 Series。
-            // 這裡簡單處理：顯示上界，並用 Marker 標註。
-            boxSeries.setData({json.dumps(box_data)});
-        }}
-
-        // Target Line
-        if ({json.dumps(target_price)}) {{
-            candleSeries.createPriceLine({{
-                price: {target_price or 0},
-                color: '#38bdf8',
-                lineWidth: 2,
-                lineStyle: LightweightCharts.LineStyle.Dashed,
-                axisLabelVisible: true,
-                title: 'Logical Target (DOL)',
-            }});
-        }}
-
-        window.addEventListener('resize', () => {{
-            chart.applyOptions({{ width: chartElement.clientWidth, height: chartElement.clientHeight }});
-        }});
-    </script>
+    <div class="tradingview-widget-container" style="height:600px; width:100%;">
+      <div id="tradingview_widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
+        "autosize": true,
+        "symbol": "{tv_symbol}",
+        "interval": "{tv_interval}",
+        "timezone": "Asia/Taipei",
+        "theme": "dark",
+        "style": "1",
+        "locale": "zh_tw",
+        "toolbar_bg": "#1e293b",
+        "enable_publishing": false,
+        "hide_top_toolbar": false,
+        "hide_legend": false,
+        "save_image": true,
+        "container_id": "tradingview_widget"
+      }});
+      </script>
+    </div>
     """
     components.html(html_code, height=620)
 
@@ -302,24 +207,63 @@ def render_dashboard(display_stocks, key_prefix, chart_interval='1d', chart_peri
         
         stock_data = next((s for s in display_stocks if s['ticker'] == selected), None)
         
-        try:
-            with st.spinner(f"正在同步全球期貨數據 ({chart_interval})..."):
-                df = yf.download(selected, period=chart_period, interval=chart_interval, progress=False)
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-                df.dropna(subset=['Close'], inplace=True)
-                
-                # 計算 Vegas 通道，確保傳遞給前端圖表
-                close_s = df['Close'].iloc[:, 0] if isinstance(df['Close'], pd.DataFrame) else df['Close']
-                df['EMA_144'] = close_s.ewm(span=144, adjust=False).mean()
-                df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
+        chart_tab1, chart_tab2 = st.tabs(["🤖 AI 預測結構", "📊 TradingView 實戰圖"])
+        
+        with chart_tab1:
+            try:
+                with st.spinner(f"正在分析全球期貨數據 ({chart_interval})..."):
+                    df = yf.download(selected, period=chart_period, interval=chart_interval, progress=False)
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = df.columns.get_level_values(0)
+                    df.dropna(subset=['Close'], inplace=True)
+                    
+                    close_s = df['Close'].iloc[:, 0] if isinstance(df['Close'], pd.DataFrame) else df['Close']
+                    df['EMA_144'] = close_s.ewm(span=144, adjust=False).mean()
+                    df['EMA_169'] = close_s.ewm(span=169, adjust=False).mean()
+                    df['EMA_576'] = close_s.ewm(span=576, adjust=False).mean()
+                    df['EMA_676'] = close_s.ewm(span=676, adjust=False).mean()
 
-                # 直接啟動統一化實戰圖表 (TradingView 質感)
-                render_unified_chart(selected, df, stock_data, chart_interval)
-                
-                st.info("💡 **實戰提示**：深色背景圖表支援 TradingView 式縮放。**彩色透明區塊**為系統預測的關鍵伏擊區，**藍色虛線**為 DOL 目標。")
-        except Exception as e:
-            st.error(f"圖表系統暫時無法處理 {selected}: {str(e)}")
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                                        vertical_spacing=0.03, row_heights=[0.75, 0.25])
+
+                    open_s = df['Open'].iloc[:, 0] if isinstance(df['Open'], pd.DataFrame) else df['Open']
+                    high_s = df['High'].iloc[:, 0] if isinstance(df['High'], pd.DataFrame) else df['High']
+                    low_s = df['Low'].iloc[:, 0] if isinstance(df['Low'], pd.DataFrame) else df['Low']
+
+                    fig.add_trace(go.Candlestick(
+                        x=df.index, open=open_s, high=high_s, low=low_s, close=close_s,
+                        name='價格', increasing_line_color='#22c55e', decreasing_line_color='#ef4444'
+                    ), row=1, col=1)
+
+                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], mode='lines', name='EMA 144', line=dict(color='#fcd34d', width=1.5)), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], mode='lines', name='EMA 576', line=dict(color='#a78bfa', width=1.5)), row=1, col=1)
+
+                    if stock_data:
+                        rh = stock_data.get('range_high')
+                        rl = stock_data.get('range_low')
+                        eq = stock_data.get('equilibrium')
+                        
+                        if rh and rl:
+                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rh, x1=df.index[-1], y1=rh, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=rl, x1=df.index[-1], y1=rl, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                            fig.add_shape(type="line", x0=df.index[-120] if len(df) > 120 else df.index[0], y0=eq, x1=df.index[-1], y1=eq, line=dict(color="rgba(255,255,255,0.2)", width=2, dash="dash"), row=1, col=1)
+
+                        if stock_data.get('predicted_zone'):
+                            p_low, p_high = stock_data['predicted_zone']
+                            p_color = "rgba(52, 211, 153, 0.3)" if stock_data['direction'] == "Long" else "rgba(248, 113, 113, 0.3)"
+                            fig.add_shape(type="rect", x0=df.index[-40] if len(df) > 40 else df.index[0], y0=p_low, x1=df.index[-1], y1=p_high, fillcolor=p_color, line=dict(width=0), layer="below", row=1, col=1)
+
+                        if stock_data.get('logical_target'):
+                            fig.add_hline(y=stock_data['logical_target'], line_dash="dash", line_color="#38bdf8", annotation_text="Target", row=1, col=1)
+
+                    fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis_rangeslider_visible=False, margin=dict(l=0, r=0, t=30, b=0))
+
+                    st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"AI 圖表暫時故障: {str(e)}")
+
+        with chart_tab2:
+            render_tradingview_widget(selected, chart_interval)
 
 # 使用頁籤切換時框
 tab_daily, tab_hourly = st.tabs(["📅 日線波段預測", "⏱️ 小時級別伏擊"])
