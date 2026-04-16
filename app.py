@@ -122,43 +122,62 @@ def render_dashboard(display_stocks, key_prefix):
     if session_key not in st.session_state:
         st.session_state[session_key] = display_stocks[0]['ticker'] if display_stocks else None
 
-    with col1:
-        st.subheader("📋 指標訊號清單")
-            
     for stock in display_stocks:
         ticker = stock['ticker']
-        entry = stock.get('entry_zone') or "未成型"
-        sl = stock.get('stop_loss') or 0
-        target = stock.get('target1') or 0
-        upside = stock.get('upside_pct', 0) * 100
-        
-        sl_str = f"NT$ {sl:.2f}" if sl else "-"
-        target_str = f"NT$ {target:.2f}" if target else "-"
-        
         c_name = stock.get('company_name', '').replace('\n', ' ').replace('\r', '')
         sector = stock.get('sector', '').replace('\n', ' ').replace('\r', '')
         desc = stock.get('description', '').replace('\n', ' ').replace('\r', '')
         
-        desc_html = f'<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);"><div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px; letter-spacing: 0.05em;">主要經營業務</div><div style="color: #cbd5e1; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;" title="{desc}">{desc}</div></div>' if desc and desc != '無' else ''
+        direction = stock.get('direction', 'Unknown')
+        dir_color = "#34d399" if direction == "Long" else "#f87171"
+        dir_icon = "📈" if direction == "Long" else "📉"
+        
+        # 預測進場位
+        zone = stock.get('predicted_zone')
+        poi_type = stock.get('poi_type', 'POI')
+        entry_str = f"{min(zone):.2f} - {max(zone):.2f}" if zone else "尋找中..."
+        
+        # 目標位
+        target = stock.get('logical_target', 0)
+        target_str = f"{target:.2f}" if target else "-"
+        
+        # 位置相對於平衡點
+        close = stock.get('latest_close', 0)
+        eq = stock.get('equilibrium', 0)
+        pos_text = "折價區 (偏低)" if close < eq else "溢價區 (偏高)"
+        pos_color = "#34d399" if (direction == "Long" and close < eq) or (direction == "Short" and close > eq) else "#94a3b8"
+
         sector_html = f'<span style="font-size: 13px; font-weight: normal; background: #334155; padding: 2px 8px; border-radius: 12px; color: #cbd5e1;">{sector}</span>' if sector and sector != '未知' else ''
         
         # IC 評分呈現邏輯
         ic_val = stock.get('current_ic', 0)
         ic_color = "#34d399" if ic_val >= 0.05 else ("#f87171" if ic_val <= -0.05 else "#94a3b8")
         ic_text = f"{ic_val:+.3f}"
-        ic_html = f'<div style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;"><span style="color: #94a3b8; font-size: 12px;">當前預測勝率 (IC)</span><span style="color: {ic_color}; font-weight: 700; font-size: 14px;">{ic_text}</span></div>'
+        ic_html = f'<div style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;"><span style="color: #94a3b8; font-size: 12px;">預測勝率 (IC)</span><span style="color: {ic_color}; font-weight: 700; font-size: 14px;">{ic_text}</span></div>'
 
-        html = f'<div class="stock-card"><h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;"><span style="color:#60a5fa;">{ticker}</span><span>{c_name}</span>{sector_html}</h2><div style="margin-bottom: 16px;">{ic_html}</div><div class="metric-row"><div class="metric"><span class="metric-label">建議進場區間</span><span class="metric-value buy-zone">{entry}</span></div><div class="metric"><span class="metric-label">潛在報酬空間</span><span class="metric-value potential">+{upside:.1f}%</span></div></div><div class="metric-row"><div class="metric"><span class="metric-label">停利目標(BSL)</span><span class="metric-value target-price">{target_str}</span></div><div class="metric"><span class="metric-label">防守停損(OB Low)</span><span class="metric-value stop-loss">{sl_str}</span></div></div>{desc_html}</div>'
-        
-        if stock.get('is_fallback') and stock.get('fallback_reason'):
-            reason = stock['fallback_reason']
-            html += f'<div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px;"><span style="color: #fbbf24; font-size: 13px; font-weight: 600;">💡 推薦原因</span><div style="color: #d1d5db; font-size: 13px; margin-top: 4px; line-height: 1.5;">{reason}</div></div>'
-            
-        html += "</div>"
-        
+        html = f"""
+        <div class="stock-card">
+            <h2 style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 0;">
+                <span style="color:#60a5fa;">{ticker}</span>
+                <span>{c_name}</span>
+                {sector_html}
+            </h2>
+            <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
+                <div style="background: {dir_color}22; color: {dir_color}; padding: 4px 10px; border-radius: 4px; font-weight: bold; border: 1px solid {dir_color}44;">{dir_icon} {direction} Bias</div>
+                {ic_html}
+            </div>
+            <div class="metric-row">
+                <div class="metric"><span class="metric-label">預測未來最佳進場 ({poi_type})</span><span class="metric-value buy-zone">{entry_str}</span></div>
+                <div class="metric"><span class="metric-label">當前價值位階</span><span style="color: {pos_color}; font-size: 18px; font-weight: 700; margin-top: 4px;">{pos_text}</span></div>
+            </div>
+            <div class="metric-row">
+                <div class="metric"><span class="metric-label">波段目標獲利價 (DOL)</span><span class="metric-value target-price">{target_str}</span></div>
+                <div class="metric"><span class="metric-label">當前最新成交價</span><span class="metric-value" style="color: #f8fafc;">{close:.2f}</span></div>
+            </div>
+        </div>
+        """
         st.markdown(html, unsafe_allow_html=True)
-        # 取代危險的 JS onclick，使用完美原生的 Streamlit button
-        if st.button(f"📊 載入 {ticker} 走勢圖", key=f"btn_{ticker}_{key_prefix}", use_container_width=True):
+        if st.button(f"📊 展開未來預測圖表: {ticker}", key=f"btn_{ticker}_{key_prefix}", use_container_width=True):
             st.session_state[session_key] = ticker
             st.rerun()
 
@@ -218,26 +237,29 @@ def render_dashboard(display_stocks, key_prefix):
             fig.add_hline(y=0.05, line_dash="dash", line_color="rgba(34,197,94,0.5)", row=2, col=1)
             fig.add_hline(y=-0.05, line_dash="dash", line_color="rgba(239,68,68,0.5)", row=2, col=1)
 
-            # SMC Structures
+            # --- Predictive SMC Visuals ---
             if stock_data:
-                if stock_data.get('ob') and stock_data.get('ob_date'):
-                    ob_high, ob_low = stock_data['ob']
-                    fig.add_shape(type="rect",
-                        x0=stock_data['ob_date'], y0=ob_low, x1=df.index[-1].strftime('%Y-%m-%d'), y1=ob_high,
-                        fillcolor="rgba(239, 68, 68, 0.2)", line=dict(width=0), layer="below", name="Bullish OB"
-                    )
+                rh = stock_data.get('range_high')
+                rl = stock_data.get('range_low')
+                eq = stock_data.get('equilibrium')
+                
+                # 繪製當前交易區間 (Trading Range)
+                if rh and rl:
+                    fig.add_shape(type="line", x0=df.index[-120], y0=rh, x1=df.index[-1], y1=rh, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                    fig.add_shape(type="line", x0=df.index[-120], y0=rl, x1=df.index[-1], y1=rl, line=dict(color="rgba(255,255,255,0.3)", width=1, dash="dot"), row=1, col=1)
+                    fig.add_shape(type="line", x0=df.index[-120], y0=eq, x1=df.index[-1], y1=eq, line=dict(color="rgba(255,255,255,0.2)", width=2, dash="dash"), row=1, col=1)
+                    fig.add_annotation(x=df.index[-60], y=eq, text="Equilibrium (50%)", showarrow=False, font=dict(color="gray", size=10), row=1, col=1)
 
-                if stock_data.get('fvg') and stock_data.get('fvg_date'):
-                    fvg_high, fvg_low = stock_data['fvg']
-                    fig.add_shape(type="rect",
-                        x0=stock_data['fvg_date'], y0=fvg_low, x1=df.index[-1].strftime('%Y-%m-%d'), y1=fvg_high,
-                        fillcolor="rgba(34, 197, 94, 0.2)", line=dict(width=0), layer="below", name="Bullish FVG"
-                    )
+                # 繪製預測進場區 (Predicted Zone)
+                if stock_data.get('predicted_zone'):
+                    p_low, p_high = stock_data['predicted_zone']
+                    p_color = "rgba(52, 211, 153, 0.3)" if stock_data['direction'] == "Long" else "rgba(248, 113, 113, 0.3)"
+                    fig.add_shape(type="rect", x0=df.index[-40], y0=p_low, x1=df.index[-1], y1=p_high, fillcolor=p_color, line=dict(width=0), layer="below", row=1, col=1)
+                    fig.add_annotation(x=df.index[-20], y=p_high, text=f"Predicted {stock_data.get('poi_type')}", showarrow=True, arrowhead=1, font=dict(color="white", size=10), row=1, col=1)
 
-                if stock_data.get('target1'):
-                    fig.add_hline(y=stock_data['target1'], line_dash="dash", line_color="#cbd5e1", annotation_text="Target 1 (BSL)", row=1, col=1)
-                if stock_data.get('target2'):
-                    fig.add_hline(y=stock_data['target2'], line_dash="dash", line_color="#bae6fd", annotation_text="Target 2 (EQH)", row=1, col=1)
+                # 繪製目標位 (Target)
+                if stock_data.get('logical_target'):
+                    fig.add_hline(y=stock_data['logical_target'], line_dash="dash", line_color="#38bdf8", annotation_text="Logical Target (DOL)", row=1, col=1)
 
             fig.update_layout(
                 template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
