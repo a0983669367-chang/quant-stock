@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 import data_fetcher
 import threading
 import datetime
+import textwrap
 
 # 頁面配置
 st.set_page_config(page_title="台股 SMC x Vegas 量化監控系統", layout="wide", page_icon="📈")
@@ -195,7 +196,7 @@ with col1:
                 dy_str = f"{dy:.1f}%" if dy > 0 else "-"
                 
                 # 顯示樣式
-                html = f"""
+                html = textwrap.dedent(f"""
                 <div class="stock-card">
                     <div class="stock-header">
                         <div class="stock-title">
@@ -237,7 +238,7 @@ with col1:
                         <div class="f-metric">💰 殖利率 <span class="f-val">{dy_str}</span></div>
                     </div>
                 </div>
-                """
+                """).strip()
                 st.markdown(html, unsafe_allow_html=True)
                 if st.button(f"📊 結構圖 {ticker}", key=f"btn_{ticker}", use_container_width=True):
                     st.session_state.selected_ticker = ticker
