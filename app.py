@@ -144,8 +144,9 @@ with tab1:
                             st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    st.markdown("### 📂 歷史成形標的回顧")
-    st.write("此處記錄了所有曾經觸發「已成形」信號的標的。")
+    st.markdown("### 📂 歷史成形標的回顧 & 2026 回測成效")
+    st.info("此處紀錄了從 2026 年初至今的自動回測數據與實際掃描紀錄。")
+    
     history_file = 'data/triggered_records.json'
     if os.path.exists(history_file):
         try:
@@ -153,8 +154,36 @@ with tab2:
                 records = json.load(f)
             if records:
                 df_h = pd.DataFrame(records)
-                df_h.columns = ["日期", "代號", "名稱", "目標價", "停損價", "當時進價"]
-                st.dataframe(df_h[["日期", "代號", "名稱", "當時進價", "目標價", "停損價"]], use_container_width=True, hide_index=True)
-            else: st.info("目前尚無紀錄。")
-        except: st.error("讀取歷史紀錄出錯。")
-    else: st.info("尚無歷史紀錄檔案。")
+                
+                # 計算統計數據
+                total = len(df_h)
+                wins = len(df_h[df_h['result'] == '🎯 止盈'])
+                losses = len(df_h[df_h['result'] == '🛡️ 止損'])
+                running = len(df_h[df_h['result'] == '⏳ 進行中'])
+                win_rate = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
+                
+                # 顯示美化指標
+                m_c1, m_c2, m_c3, m_c4 = st.columns(4)
+                with m_c1:
+                    st.metric("歷史勝率", f"{win_rate:.1f}%")
+                with m_c2:
+                    st.metric("累積止盈", f"{wins} 筆")
+                with m_c3:
+                    st.metric("累積止損", f"{losses} 筆")
+                with m_c4:
+                    st.metric("追蹤中", f"{running} 筆")
+                
+                # 格式化表格
+                df_display = df_h[["date", "ticker", "name", "entry_price", "target", "stop_loss", "result"]]
+                df_display.columns = ["成形日期", "股票代號", "名稱", "當時進價", "目標價", "停損價", "最終成效"]
+                
+                # 使用顏色標註
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                
+                st.caption("註：勝率計算排除『進行中』的標的。回測邏輯為 SMC x Vegas 完美成形後追蹤後續最高/最低點。")
+            else:
+                st.info("目前尚無紀錄。")
+        except Exception as e:
+            st.error(f"讀取紀錄出錯: {e}")
+    else:
+        st.info("歷史紀錄檔案尚未建立。請點擊『重新掃描』觸發數據更新。")
