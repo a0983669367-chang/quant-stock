@@ -195,50 +195,44 @@ with col1:
                 pe_str = f"{pe:.1f}" if pe > 0 else "-"
                 dy_str = f"{dy:.1f}%" if dy > 0 else "-"
                 
-                # 顯示樣式
-                html = textwrap.dedent(f"""
-                <div class="stock-card">
-                    <div class="stock-header">
-                        <div class="stock-title">
-                            <h2>{ticker} {name}</h2>
-                            <div class="industry-tag">🏷️ {industry}</div>
-                        </div>
-                        <span class="status-badge {badge_class}">{status_cn}</span>
-                    </div>
-
-                    <div class="price-row">
-                        <span class="price-label">目前現價</span>
-                        <span class="price-value">NT$ {stock.get('latest_close', 0):.2f}</span>
-                    </div>
-
-                    <div class="metric-row">
-                        <div class="metric">
-                            <span class="metric-label">🎯 建議進場位</span>
-                            <span class="metric-value buy-zone">{entry}</span>
-                        </div>
-                        <div class="metric" style="text-align: right;">
-                            <span class="metric-label">🚀 預期報酬率</span>
-                            <span class="metric-value potential-val">+{upside:.1f}%</span>
-                        </div>
-                    </div>
-
-                    <div class="metric-row">
-                        <div class="metric">
-                            <span class="metric-label">📈 停利修正位</span>
-                            <span class="metric-value target-price">{target_str}</span>
-                        </div>
-                        <div class="metric" style="text-align: right;">
-                            <span class="metric-label">🛡️ 防守停損位</span>
-                            <span class="metric-value stop-loss">{sl_str}</span>
-                        </div>
-                    </div>
-
-                    <div class="fundamental-row">
-                        <div class="f-metric">📊 本益比 <span class="f-val">{pe_str}</span></div>
-                        <div class="f-metric">💰 殖利率 <span class="f-val">{dy_str}</span></div>
-                    </div>
-                </div>
-                """).strip()
+                # 顯示樣式 (直接靠左對齊，確保 Markdown 不會誤判為程式碼區塊)
+                html = f"""<div class="stock-card">
+<div class="stock-header">
+<div class="stock-title">
+<h2>{ticker} {name}</h2>
+<div class="industry-tag">🏷️ {industry}</div>
+</div>
+<span class="status-badge {badge_class}">{status_cn}</span>
+</div>
+<div class="price-row">
+<span class="price-label">目前現價</span>
+<span class="price-value">NT$ {stock.get('latest_close', 0):.2f}</span>
+</div>
+<div class="metric-row">
+<div class="metric">
+<span class="metric-label">🎯 建議進場位</span>
+<span class="metric-value buy-zone">{entry}</span>
+</div>
+<div class="metric" style="text-align: right;">
+<span class="metric-label">🚀 預期報酬率</span>
+<span class="metric-value potential-val">+{upside:.1f}%</span>
+</div>
+</div>
+<div class="metric-row">
+<div class="metric">
+<span class="metric-label">📈 停利修正位</span>
+<span class="metric-value target-price">{target_str}</span>
+</div>
+<div class="metric" style="text-align: right;">
+<span class="metric-label">🛡️ 防守停損位</span>
+<span class="metric-value stop-loss">{sl_str}</span>
+</div>
+</div>
+<div class="fundamental-row">
+<div class="f-metric">📊 本益比 <span class="f-val">{pe_str}</span></div>
+<div class="f-metric">💰 殖利率 <span class="f-val">{dy_str}</span></div>
+</div>
+</div>"""
                 st.markdown(html, unsafe_allow_html=True)
                 if st.button(f"📊 結構圖 {ticker}", key=f"btn_{ticker}", use_container_width=True):
                     st.session_state.selected_ticker = ticker
