@@ -47,6 +47,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 側邊欄配置
+st.sidebar.title("⚙️ 系統設定")
+
+# 策略模式切換
+strategy_mode = st.sidebar.selectbox(
+    "選擇策略模式",
+    ["🟢 穩健型 (Conservative)", "🔵 標準型 (Standard)"],
+    help="穩健型會過濾掉趨勢不明顯、盈虧比較差或大戶量能未確認的標的，追求更高的勝率。"
+)
+
+is_conservative_only = "穩健型" in strategy_mode
+
+# 透過 Streamlit 原生機制實作即時掃描與快取
+@st.cache_data(ttl=3600, show_spinner="🤖 正在執行全市場掃描 (預計 20-30 秒)...")
+def get_latest_signals():
+    data = data_fetcher.run_analysis()
+    return data if data else []
+
+def refresh_data():
+    st.cache_data.clear()
+    st.rerun()
+
+if st.sidebar.button("🔄 立即重新掃描全市場"):
+    refresh_data()
+
 st.title("📈 台股 SMC x Vegas 量化監控系統")
 st.markdown("針對台股前 150 大市值標的進行 SMC (Smart Money Concepts) 結構與 Vegas 通道分析，尋找高勝率伏擊點。")
 
@@ -60,37 +85,32 @@ with st.expander("📖 系統原理與使用說明 (新手必讀)"):
     3. **黃金伏擊區 (買點判定)**：當股價回測至支撐區域，且受支撐於 Vegas 通道上方時。
     
     ---
-    ### 介面燈號與狀態說明
-    *   **🟢 已成形 (Triggered)**：標的正處於建議進場區間，適合執行。
-    *   **🟡 未成形 (Potential)**：標的正向區間靠近中，適合加觀察清單伏擊。
-    *   **預期報酬率過濾**：系統自動剔除報酬率低於 5% 的標的。
+    ### 策略模式說明
+    *   **🟢 穩健型**：額外要求 **EMA 144 斜率向上**、**盈虧比 > 1.5** 且 **近期買盤增量**，適合追求高勝率。
+    *   **🔵 標準型**：只要結構符合即發出信號，捕捉更多潛在契機。
     """)
 
-# 數據獲取與快取
-@st.cache_data(ttl=3600, show_spinner="🤖 正在執行全市場掃描...")
-def get_latest_signals():
-    data = data_fetcher.run_analysis()
-    return data if data else []
+# 取得資料
+all_signals = get_latest_signals()
 
-def refresh_data():
-    st.cache_data.clear()
-    st.rerun()
-
-col_btn, _ = st.columns([1, 4])
-with col_btn:
-    if st.button("🔄 立即重新掃描全市場"):
-        refresh_data()
-
-signals = get_latest_signals()
+# 根據模式過濾
+if is_conservative_only:
+    signals = [s for s in all_signals if s.get('is_conservative', False)]
+else:
+    signals = all_signals
 
 if not signals:
-    st.info("🎯 今日無符合條件之標的。")
+    if is_conservative_only:
+        st.warning("🎯 目前無符合「穩健型」條件的標的，建議切換至「標準型」查看，或等待市場結構修正。")
+    else:
+        st.info("🎯 今日無符合條件之標的。")
     st.stop()
 else:
-    st.success(f"🔥 掃描完成！為您精選出 {len(signals)} 檔符合結構的標的！")
+    mode_text = "穩健型" if is_conservative_only else "標準型"
+    st.success(f"🔥 {mode_text}掃描完成！為您精選出 {len(signals)} 檔符合結構的標的！")
 
 # 頁面分頁排版
-tab1, tab2 = st.tabs(["📊 實時監控", "📂 歷史成形回顧"])
+tab1, tab2 = st.tabs(["📊 實時監控", "📂 歷史成形回顧 & 2026 回測成效"])
 
 with tab1:
     triggered = [s for s in signals if s['status'] == 'Triggered']
@@ -109,14 +129,15 @@ with tab1:
                 name = stock.get('name', ticker)
                 price = stock.get('latest_close', 0)
                 upside = stock.get('upside_pct', 0) * 100
+                rr = stock.get('rr_ratio', 0)
                 status_text = f":green[已成形]" if stock['status'] == 'Triggered' else f":orange[未成形]"
-                label = f"{icon} **{ticker} {name}** | 現價 **{price:.2f}** | 預期報酬 **+{upside:.1f}%** | {status_text}"
+                label = f"{icon} **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}** | {status_text}"
                 
                 with st.expander(label):
                     m1, m2, m3, m4 = st.columns(4)
                     with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
                     with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                    with m3: st.metric("停利修正位", f"{stock.get('target1', 0):.1f}")
+                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
                     with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
                     
                     st.info(f"🏷️ 產業: {stock.get('industry', 'N/A')} | 📊 PE: {stock.get('pe_ratio', 0):.1f} | 💰 殖利率: {stock.get('div_yield', 0):.1f}%")
@@ -145,7 +166,7 @@ with tab1:
 
 with tab2:
     st.markdown("### 📂 歷史成形標的回顧 & 2026 回測成效")
-    st.info("此處紀錄了從 2026 年初至今的自動回測數據與實際掃描紀錄。")
+    st.info("※ 歷史統計將根據當前「策略模式」自動過濾結果。")
     
     history_file = 'data/triggered_records.json'
     if os.path.exists(history_file):
@@ -153,37 +174,34 @@ with tab2:
             with open(history_file, 'r', encoding='utf-8') as f:
                 records = json.load(f)
             if records:
-                df_h = pd.DataFrame(records)
+                raw_df = pd.DataFrame(records)
+                # 根據模式過濾
+                if is_conservative_only:
+                    if 'is_conservative' in raw_df.columns:
+                        df_h = raw_df[raw_df['is_conservative'] == True].copy()
+                    else:
+                        df_h = pd.DataFrame()
+                else:
+                    df_h = raw_df
                 
-                # 計算統計數據
-                total = len(df_h)
-                wins = len(df_h[df_h['result'] == '🎯 止盈'])
-                losses = len(df_h[df_h['result'] == '🛡️ 止損'])
-                running = len(df_h[df_h['result'] == '⏳ 進行中'])
-                win_rate = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
-                
-                # 顯示美化指標
-                m_c1, m_c2, m_c3, m_c4 = st.columns(4)
-                with m_c1:
-                    st.metric("歷史勝率", f"{win_rate:.1f}%")
-                with m_c2:
-                    st.metric("累積止盈", f"{wins} 筆")
-                with m_c3:
-                    st.metric("累積止損", f"{losses} 筆")
-                with m_c4:
-                    st.metric("追蹤中", f"{running} 筆")
-                
-                # 格式化表格
-                df_display = df_h[["date", "ticker", "name", "entry_price", "target", "stop_loss", "result"]]
-                df_display.columns = ["成形日期", "股票代號", "名稱", "當時進價", "目標價", "停損價", "最終成效"]
-                
-                # 使用顏色標註
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
-                
-                st.caption("註：勝率計算排除『進行中』的標的。回測邏輯為 SMC x Vegas 完美成形後追蹤後續最高/最低點。")
-            else:
-                st.info("目前尚無紀錄。")
-        except Exception as e:
-            st.error(f"讀取紀錄出錯: {e}")
+                if not df_h.empty:
+                    wins = len(df_h[df_h['result'] == '🎯 止盈'])
+                    losses = len(df_h[df_h['result'] == '🛡️ 止損'])
+                    running = len(df_h[df_h['result'] == '⏳ 進行中'])
+                    win_rate = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
+                    
+                    m_c1, m_c2, m_c3, m_c4 = st.columns(4)
+                    with m_c1: st.metric("歷史勝率", f"{win_rate:.1f}%")
+                    with m_c2: st.metric("累積止盈", f"{wins} 筆")
+                    with m_c3: st.metric("累積止損", f"{losses} 筆")
+                    with m_c4: st.metric("追蹤中", f"{running} 筆")
+                    
+                    df_display = df_h[["date", "ticker", "name", "entry_price", "target", "stop_loss", "result"]]
+                    df_display.columns = ["日期", "代號", "名稱", "進場價", "目標價", "停損價", "最終成效"]
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+                else:
+                    st.warning("⚠️ 目前模式下尚無歷史紀錄。")
+            else: st.info("目前尚無紀錄。")
+        except Exception as e: st.error(f"讀取紀錄出錯: {e}")
     else:
-        st.info("歷史紀錄檔案尚未建立。請點擊『重新掃描』觸發數據更新。")
+        st.info("歷史紀錄檔案尚未建立。")

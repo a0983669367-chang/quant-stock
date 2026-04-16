@@ -126,14 +126,21 @@ def calculate_smc_and_vegas(ticker):
     df['EMA_676'] = df['Close'].ewm(span=676, adjust=False).mean()
     df['RSI'] = calculate_rsi(df['Close'])
     df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
+    df['Vol_MA20'] = df['Volume'].rolling(window=20).mean()
 
     df_recent = df.tail(150).copy()
     if len(df_recent) < 20: return None
 
     latest = df_recent.iloc[-1]
     is_vegas_bullish = latest['EMA_144'] > latest['EMA_576']
+    
+    # Trend Quality: Slope of EMA 144 over 5 days
+    prev_5 = df_recent.iloc[-6]['EMA_144'] if len(df_recent) >= 6 else latest['EMA_144']
+    ema_slope = (latest['EMA_144'] - prev_5) / prev_5 * 100
+
     rsi_val = float(latest['RSI'])
     vol_ratio = float(latest['Volume'] / latest['Vol_MA5']) if latest['Vol_MA5'] > 0 else 1.0
+    rel_vol_20 = float(latest['Volume'] / latest['Vol_MA20']) if latest['Vol_MA20'] > 0 else 1.0
 
     recent_lows = get_swing_lows(df_recent, window=3)
     valid_ob = None
@@ -178,10 +185,11 @@ def calculate_smc_and_vegas(ticker):
     targets = [float(df_recent['High'].iloc[sh_idx]) for sh_idx in reversed(swing_highs) if sh_idx == len(df_recent) - 1 or df_recent['High'].iloc[sh_idx+1:].max() <= df_recent['High'].iloc[sh_idx]]
     target1 = targets[0] if targets else None
 
-    # Trigger Logic: "Triggered" (買點成形) vs "Potential" (尚未成形)
+    # Trigger Logic
     status = "None"
     stop_loss = None
     entry_zone = None
+    rr_ratio = 0
     
     if is_vegas_bullish and valid_ob:
         entry_top = max(valid_ob[0], valid_fvg[0] if valid_fvg else valid_ob[0])
@@ -195,6 +203,15 @@ def calculate_smc_and_vegas(ticker):
             status = "Potential"
 
     if status == "None": return None
+
+    # Conservative Filters
+    is_conservative = False
+    if status != "None":
+        # Rule 1: RR Ratio >= 1.5
+        # Rule 2: EMA 144 Slope > 0.05% (Bullish momentum)
+        # Rule 3: Volume MA5 > Volume MA20 (Buying force)
+        if rr_ratio >= 1.5 and ema_slope > 0.05 and latest['Vol_MA5'] > latest['Vol_MA20']:
+            is_conservative = True
 
     # Fetch Fundamentals for candidates
     # Use ticker as default name/industry if not in map
@@ -233,7 +250,10 @@ def calculate_smc_and_vegas(ticker):
         "stop_loss": float(stop_loss) if stop_loss else None,
         "entry_zone": entry_zone,
         "latest_close": float(latest['Close']),
-        "upside_pct": float((target1 - latest['Close']) / latest['Close']) if target1 and target1 > latest['Close'] else 0.0
+        "upside_pct": float((target1 - latest['Close']) / latest['Close']) if target1 and target1 > latest['Close'] else 0.0,
+        "rr_ratio": float(rr_ratio),
+        "ema_slope": float(ema_slope),
+        "is_conservative": bool(is_conservative)
     }
 
 def update_triggered_history(signals):

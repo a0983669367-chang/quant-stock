@@ -24,6 +24,10 @@ def analyze_slice(df_slice, ticker):
     is_vegas_bullish = latest['EMA_144'] > latest['EMA_576']
     if not is_vegas_bullish: return None
     
+    # EMA Slope (5 days)
+    prev_5 = df_slice.iloc[-6]['EMA_144'] if len(df_slice) >= 6 else latest['EMA_144']
+    ema_slope = (latest['EMA_144'] - prev_5) / prev_5 * 100
+    
     # Check SMC Structures in recent window
     df_recent = df_slice.tail(100).copy()
     recent_lows = get_swing_lows(df_recent, window=3)
@@ -77,12 +81,26 @@ def analyze_slice(df_slice, ticker):
 
     # Triggered Condition
     if float(latest['Low']) <= entry_top and float(latest['Close']) >= entry_bottom:
+        # Calculate RR Ratio for additional filtering
+        risk = float(latest['Close']) - stop_loss
+        reward = target1 - float(latest['Close'])
+        rr_ratio = reward / risk if risk > 0 else 0
+        
+        # Check Conservative
+        is_conservative = False
+        vol_ma20 = latest['Vol_MA20'] if 'Vol_MA20' in latest else 1
+        vol_ma5 = latest.get('Vol_MA5', 1)
+        if rr_ratio >= 1.5 and ema_slope > 0.05 and vol_ma5 > vol_ma20:
+            is_conservative = True
+
         return {
             "ticker": ticker,
             "date": df_slice.index[-1].strftime('%Y-%m-%d'),
             "entry_price": float(latest['Close']),
             "target": target1,
-            "stop_loss": stop_loss
+            "stop_loss": stop_loss,
+            "is_conservative": is_conservative,
+            "rr_ratio": rr_ratio
         }
     return None
 
@@ -120,6 +138,8 @@ def run_backtest_for_stock(ticker):
     df['EMA_169'] = df['Close'].ewm(span=169, adjust=False).mean()
     df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
     df['EMA_676'] = df['Close'].ewm(span=676, adjust=False).mean()
+    df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
+    df['Vol_MA20'] = df['Volume'].rolling(window=20).mean()
 
     results = []
     # Start loop from 2026-01-01
