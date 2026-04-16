@@ -20,45 +20,74 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     .stock-card {
-        background: rgba(30, 41, 59, 0.7);
+        background: rgba(30, 41, 59, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 16px;
-        backdrop-filter: blur(10px);
-        transition: transform 0.2s, box-shadow 0.2s;
+        padding: 24px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(15px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .stock-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-        border-color: rgba(99, 102, 241, 0.5);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+        border-color: rgba(99, 102, 241, 0.8);
     }
     .stock-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         margin-bottom: 12px;
+    }
+    .stock-title {
+        display: flex;
+        flex-direction: column;
     }
     .stock-card h2 {
         margin: 0;
-        color: #f1f5f9;
-        font-weight: 700;
-        font-size: 20px;
+        color: #f8fafc;
+        font-weight: 800;
+        font-size: 22px;
+        letter-spacing: -0.02em;
     }
     .industry-tag {
         font-size: 11px;
-        background: rgba(99, 102, 241, 0.2);
-        color: #a5b4fc;
-        padding: 2px 8px;
-        border-radius: 4px;
-        margin-top: 4px;
+        background: rgba(99, 102, 241, 0.25);
+        color: #c7d2fe;
+        padding: 3px 10px;
+        border-radius: 6px;
+        margin-top: 6px;
         display: inline-block;
+        font-weight: 600;
     }
+    .status-badge {
+        font-size: 11px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .bg-triggered { background: linear-gradient(135deg, #10b981, #059669); color: white; border: 1px solid #047857; }
+    .bg-potential { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: 1px solid #b45309; }
+    
+    .price-row {
+        margin: 12px 0;
+        padding: 10px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+    .price-label { font-size: 12px; color: #94a3b8; }
+    .price-value { font-size: 24px; font-weight: 800; color: #ffffff; }
+
     .metric-row {
         display: flex;
         justify-content: space-between;
-        margin-top: 12px;
-        gap: 10px;
+        margin-top: 14px;
+        gap: 12px;
     }
     .metric {
         flex: 1;
@@ -68,39 +97,35 @@ st.markdown("""
     .metric-label {
         font-size: 10px;
         color: #94a3b8;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.1em;
     }
     .metric-value {
-        font-size: 14px;
-        color: #f8fafc;
-        font-weight: 600;
-        margin-top: 2px;
+        font-size: 15px;
+        color: #f1f5f9;
+        font-weight: 700;
+        margin-top: 4px;
     }
     .buy-zone { color: #34d399; }
     .stop-loss { color: #f87171; }
     .target-price { color: #60a5fa; }
-    .potential-val { color: #facc15; }
+    .potential-val { color: #fbbf24; }
     
     .fundamental-row {
         display: flex;
-        gap: 12px;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        gap: 16px;
+        margin-top: 14px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
     }
     .f-metric {
-        font-size: 11px;
-        color: #64748b;
+        font-size: 12px;
+        color: #cbd5e1;
+        font-weight: 500;
     }
-    .status-badge {
-        font-size: 9px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-weight: 700;
-    }
-    .bg-triggered { background: #059669; color: white; }
-    .bg-potential { background: #ca8a04; color: white; }
+    .f-val { color: #ffffff; font-weight: 700; margin-left: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,34 +198,43 @@ with col1:
                 html = f"""
                 <div class="stock-card">
                     <div class="stock-header">
-                        <div>
-                            <h2>{ticker} {name} <span class="status-badge {badge_class}">{status_cn}</span></h2>
-                            <div class="industry-tag">{industry}</div>
+                        <div class="stock-title">
+                            <h2>{ticker} {name}</h2>
+                            <div class="industry-tag">🏷️ {industry}</div>
                         </div>
+                        <span class="status-badge {badge_class}">{status_cn}</span>
                     </div>
-                    <div class="fundamental-row">
-                        <div class="f-metric">本益比: {pe_str}</div>
-                        <div class="f-metric">殖利率: {dy_str}</div>
+
+                    <div class="price-row">
+                        <span class="price-label">目前現價</span>
+                        <span class="price-value">NT$ {stock.get('latest_close', 0):.2f}</span>
                     </div>
+
                     <div class="metric-row">
                         <div class="metric">
-                            <span class="metric-label">建議進場位</span>
+                            <span class="metric-label">🎯 建議進場位</span>
                             <span class="metric-value buy-zone">{entry}</span>
                         </div>
-                        <div class="metric">
-                            <span class="metric-label">預期報酬率</span>
+                        <div class="metric" style="text-align: right;">
+                            <span class="metric-label">🚀 預期報酬率</span>
                             <span class="metric-value potential-val">+{upside:.1f}%</span>
                         </div>
                     </div>
+
                     <div class="metric-row">
                         <div class="metric">
-                            <span class="metric-label">停利修正位</span>
+                            <span class="metric-label">📈 停利修正位</span>
                             <span class="metric-value target-price">{target_str}</span>
                         </div>
-                        <div class="metric">
-                            <span class="metric-label">防守停損位</span>
+                        <div class="metric" style="text-align: right;">
+                            <span class="metric-label">🛡️ 防守停損位</span>
                             <span class="metric-value stop-loss">{sl_str}</span>
                         </div>
+                    </div>
+
+                    <div class="fundamental-row">
+                        <div class="f-metric">📊 本益比 <span class="f-val">{pe_str}</span></div>
+                        <div class="f-metric">💰 殖利率 <span class="f-val">{dy_str}</span></div>
                     </div>
                 </div>
                 """
