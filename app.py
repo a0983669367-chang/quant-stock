@@ -80,44 +80,45 @@ st.title("📈 全球期貨指標 SMC x Vegas 戰情室")
 st.markdown("針對全球權重指數 (NQ, ES, YM, NKD, A50) 進行 SMC 聰明錢結構與 Vegas 通道分析。報價來源為 yfinance (約 15 分鐘延遲)。")
 
 # 透過 Streamlit @st.cache_data 原生機制，實作即時掃描與 15 分鐘快取
-# 透過 Streamlit @st.cache_data 原生機制，實作即時掃描與 15 分鐘快取
-@st.cache_data(ttl=900, show_spinner="🤖 正在分析全球期貨最新價格結構 (約需 15-20 秒)...")
-def get_latest_futures_signals():
-    # 改為直接從後端函式取得回傳值，不再依賴檔案系統讀寫，增加穩定性
-    data = data_fetcher.run_analysis()
-    if data:
-        return data
-    return []
+@st.cache_data(ttl=900, show_spinner="🤖 正在分析全球期貨最新價格結構...")
+def get_latest_futures_signals(interval, period):
+    # 直接從後端函式取得回傳值，增加穩定性
+    data = data_fetcher.run_analysis(interval=interval, period=period)
+    return data if data else []
 
-try:
-    signals = get_latest_futures_signals()
-except Exception as e:
-    st.error(f"❌ 系統分析發生異常: {str(e)}")
-    signals = []
+# 使用頁籤切換時框
+tab_daily, tab_hourly = st.tabs(["📅 日線波段預測", "⏱️ 小時級別伏擊"])
 
-col_btn, _ = st.columns([1, 2])
-with col_btn:
-    if st.button("🔄 重新掃描"):
-        st.cache_data.clear()
-        st.rerun()
+def display_timeframe_content(interval, period, key_suffix):
+    try:
+        signals = get_latest_futures_signals(interval, period)
+    except Exception as e:
+        st.error(f"❌ {interval} 系統分析發生異常: {str(e)}")
+        signals = []
 
-# 判斷是否為 Fallback
-is_fallback_mode = False
-if signals and isinstance(signals, list) and len(signals) > 0 and signals[0].get('is_fallback'):
-    is_fallback_mode = True
+    col_btn, _ = st.columns([1, 2])
+    with col_btn:
+        if st.button(f"🔄 重新掃描 ({interval})", key=f"btn_rescan_{key_suffix}"):
+            st.cache_data.clear()
+            st.rerun()
 
-if signals:
-    st.success(f"🔥 全球市場掃描完成！共發現 {len(signals)} 檔符合趨勢指標標的！")
-else:
-    st.info("目前無任何指標觸發，市場可能處於震盪或過於極端。")
+    if signals:
+        st.success(f"🔥 全球市場 ({interval}) 掃描完成！共發現 {len(signals)} 檔符合趨勢指標標的！")
+    else:
+        st.info(f"目前 {interval} 無任何指標觸發，市場可能處於震盪或過於極端。")
 
-display_stocks = signals
+    render_dashboard(signals, key_suffix, interval, period)
+
+with tab_daily:
+    display_timeframe_content('1d', '3y', 'daily')
+
+with tab_hourly:
+    display_timeframe_content('1h', '60d', 'hourly')
 
 # 移除歷史資料載入邏輯
 
-def render_dashboard(display_stocks, key_prefix):
+def render_dashboard(display_stocks, key_prefix, chart_interval='1d', chart_period='3y'):
     if not display_stocks:
-        st.info("此日期無推薦標的。")
         return
 
     col1, col2 = st.columns([1, 2])
@@ -192,8 +193,8 @@ def render_dashboard(display_stocks, key_prefix):
         
         stock_data = next((s for s in display_stocks if s['ticker'] == selected), None)
         
-        with st.spinner("繪製 K 線圖中..."):
-            df = yf.download(selected, period="1y", progress=False)
+        with st.spinner(f"繪製 {chart_interval} K 線圖中..."):
+            df = yf.download(selected, period=chart_period, interval=chart_interval, progress=False)
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
                 
@@ -274,7 +275,5 @@ def render_dashboard(display_stocks, key_prefix):
 
             st.plotly_chart(fig, use_container_width=True)
 
-            st.plotly_chart(fig, use_container_width=True)
-
-# 直接呼叫渲染儀表板佈局
-render_dashboard(signals, "main")
+# 移除原本在最下方的直接呼叫，改由上方的 Tabs 邏輯觸發
+# render_dashboard(signals, "main")

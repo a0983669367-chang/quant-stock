@@ -168,13 +168,13 @@ def calculate_smc_and_vegas_df(ticker, df):
         "ema576": float(latest['EMA_576'])
     }
 
-def run_analysis():
-    print(f"[{datetime.datetime.now()}] Running SMC & Vegas Analysis on {len(UNIVERSE)} symbols...")
+def run_analysis(interval='1d', period='3y'):
+    print(f"[{datetime.datetime.now()}] Running SMC & Vegas Analysis ({interval}) on {len(UNIVERSE)} symbols...")
     results = []
     
-    # 統一透過原生 yfinance 批次下載，避免自己使用 ThreadPoolExecutor 造成的 yfinance 內部資料混淆 (Race Condition) Bug
-    print(f"[{datetime.datetime.now()}] 正在批次下載市場行情...")
-    df_all = yf.download(UNIVERSE, period='3y', progress=False, group_by='ticker', threads=True)
+    # 批次下載市場行情
+    print(f"[{datetime.datetime.now()}] 正在批次下載 {interval} 行情數據...")
+    df_all = yf.download(UNIVERSE, period=period, interval=interval, progress=False, group_by='ticker', threads=True)
     
     for ticker in UNIVERSE:
         try:
@@ -183,7 +183,7 @@ def run_analysis():
                 df = df_all[ticker].copy()
             else:
                 # 嘗試單獨下載 (做為最後防線)
-                df = yf.download(ticker, period='2y', progress=False)
+                df = yf.download(ticker, period=period, interval=interval, progress=False)
                 
             if df.empty: continue
             
