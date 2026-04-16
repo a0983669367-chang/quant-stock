@@ -82,8 +82,9 @@ def analyze_slice(df_slice, ticker):
     # Triggered Condition
     if float(latest['Low']) <= entry_top and float(latest['Close']) >= entry_bottom:
         # Calculate RR Ratio for additional filtering
-        risk = float(latest['Close']) - stop_loss
-        reward = target1 - float(latest['Close'])
+        close_price = float(latest['Close'])
+        risk = close_price - stop_loss
+        reward = target1 - close_price
         rr_ratio = reward / risk if risk > 0 else 0
         
         # Check Conservative
@@ -96,7 +97,7 @@ def analyze_slice(df_slice, ticker):
         return {
             "ticker": ticker,
             "date": df_slice.index[-1].strftime('%Y-%m-%d'),
-            "entry_price": float(latest['Close']),
+            "entry_price": close_price,
             "target": target1,
             "stop_loss": stop_loss,
             "is_conservative": is_conservative,
@@ -107,26 +108,29 @@ def analyze_slice(df_slice, ticker):
 def run_backtest_for_stock(ticker):
     print(f"Backtesting {ticker}...")
     try:
-        # Fetch data back to 2023 to ensure EMA 576/676 is stable for 2026
-        df = yf.download(ticker, start="2023-01-01", end="2026-04-16", progress=False)
+        # 使用 safer Ticker().history 避免 MultiIndex 併發衝突
+        t_obj = yf.Ticker(ticker)
+        df = t_obj.history(start="2023-01-01", end="2026-04-16", raise_errors=False)
+        
         if df.empty: return []
         
-        # 處理 yfinance 可能返回的 MultiIndex 或重複欄位
+        # 徹底移除多重索引或重複欄位
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         df = df.loc[:, ~df.columns.duplicated()].copy()
         
-        # 確保必要的欄位是 Series 而非 DataFrame
+        # 強制轉為 Series 並處理缺失值
         for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
             if col in df.columns:
                 if isinstance(df[col], pd.DataFrame):
                     df[col] = df[col].iloc[:, 0]
-        
-        if 'Close' not in df.columns: return []
+                    
         df.ffill(inplace=True)
-        df.dropna(subset=['Close'], inplace=True)
+        # 統一處理時區為 naive，避免比較報錯
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+            
         if len(df) < 576: 
-            print(f"Skipping {ticker}: Not enough data ({len(df)} days)")
             return []
 
     except Exception as e:
