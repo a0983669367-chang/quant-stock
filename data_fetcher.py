@@ -209,10 +209,8 @@ def run_analysis():
         final_list.append(res)
     
     os.makedirs('data', exist_ok=True)
-    with open('data/signals.json', 'w') as f:
-        json.dump(final_list, f, indent=4)
-        
-    print(f"[{datetime.datetime.now()}] Futures Prediction complete. {len(final_list)} items saved.")
+    print(f"[{datetime.datetime.now()}] Futures Prediction complete. {len(final_list)} items found.")
+    return final_list
 
 if __name__ == "__main__":
     run_analysis()

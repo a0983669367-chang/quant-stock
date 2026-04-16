@@ -80,38 +80,30 @@ st.title("📈 全球期貨指標 SMC x Vegas 戰情室")
 st.markdown("針對全球權重指數 (NQ, ES, YM, NKD, A50) 進行 SMC 聰明錢結構與 Vegas 通道分析。報價來源為 yfinance (約 15 分鐘延遲)。")
 
 # 透過 Streamlit @st.cache_data 原生機制，實作即時掃描與 15 分鐘快取
-@st.cache_data(ttl=900, show_spinner="🤖 正在分析全球期貨最新價格結構 (大約需要 15-20 秒)...")
+# 透過 Streamlit @st.cache_data 原生機制，實作即時掃描與 15 分鐘快取
+@st.cache_data(ttl=900, show_spinner="🤖 正在分析全球期貨最新價格結構 (約需 15-20 秒)...")
 def get_latest_futures_signals():
-    try:
-        # 確保清除舊資料
-        if os.path.exists('data/signals.json'):
-            os.remove('data/signals.json')
-        
-        data_fetcher.run_analysis()
-        
-        if os.path.exists('data/signals.json'):
-            with open('data/signals.json', 'r') as f:
-                data = json.load(f)
-                if data: return data
-        return []
-    except Exception as e:
-        st.error(f"⚠️ 分析發生技術錯誤: {str(e)}")
-        return []
+    # 改為直接從後端函式取得回傳值，不再依賴檔案系統讀寫，增加穩定性
+    data = data_fetcher.run_analysis()
+    if data:
+        return data
+    return []
 
-signals = get_latest_futures_signals()
+try:
+    signals = get_latest_futures_signals()
+except Exception as e:
+    st.error(f"❌ 系統分析發生異常: {str(e)}")
+    signals = []
 
 col_btn, _ = st.columns([1, 2])
 with col_btn:
     if st.button("🔄 重新掃描"):
         st.cache_data.clear()
-        # 強制移除檔案確保重新產出
-        if os.path.exists('data/signals.json'):
-            os.remove('data/signals.json')
         st.rerun()
 
 # 判斷是否為 Fallback
 is_fallback_mode = False
-if signals and signals[0].get('is_fallback'):
+if signals and isinstance(signals, list) and len(signals) > 0 and signals[0].get('is_fallback'):
     is_fallback_mode = True
 
 if signals:
