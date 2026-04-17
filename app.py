@@ -12,37 +12,29 @@ st.set_page_config(page_title="台股 SMC x Vegas 量化監控系統", layout="w
 
 # 自定義 CSS 樣式
 st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    html, body, [class*="css"] {
-        font-family: 'Inter', 'Noto Sans TC', sans-serif;
-    }
-    /* 全域字體放大 */
-    .stMarkdown p, .stMarkdown li {
-        font-size: 18px !important;
-        line-height: 1.6;
-    }
-    /* 摺疊面板標題樣式 */
-    .st-expanderHeader p {
-        font-size: 20px !important;
-        font-weight: 700 !important;
-        color: #f8fafc !important;
-    }
-    /* 指標數據放大 */
-    [data-testid="stMetricLabel"] p {
-        font-size: 16px !important;
-        color: #94a3b8 !important;
-        font-weight: 600 !important;
-    }
-    [data-testid="stMetricValue"] {
-        font-size: 28px !important;
-        font-weight: 800 !important;
-    }
     /* 內容區塊強化 */
     .st-expanderContent {
-        background: rgba(255, 255, 255, 0.02);
-        padding: 20px !important;
-        border-radius: 0 0 12px 12px;
+        background: rgba(255, 255, 255, 0.015) !important;
+        padding: 25px !important;
+        border-radius: 0 0 16px 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-top: none !important;
+    }
+    /* 卡片式視覺 */
+    .stock-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 20px;
+    }
+    /* 強力數據顯示 */
+    .hero-metric-box {
+        text-align: center;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        border-left: 4px solid #3b82f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -116,36 +108,55 @@ def render_stock_details(stock):
     with st.spinner(f"🚀 正在抓取 {ticker} 即時報價與圖表..."):
         try:
             t_obj = yf.Ticker(ticker)
-            # 抓取足以計算 EMA 的歷史數據
             df = t_obj.history(period='2y')
             
             if not df.empty:
                 if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
                 df = df.loc[:, ~df.columns.duplicated()].copy()
                 
-                # 取得最即時價格
                 current_price = df['Close'].iloc[-1]
+                prev_price = df['Close'].iloc[-2] if len(df) > 1 else current_price
+                change = current_price - prev_price
                 last_time = df.index[-1].strftime('%Y-%m-%d %H:%M')
                 
                 upside = stock.get('upside_pct', 0) * 100
                 rr = stock.get('rr_ratio', 0)
                 
-                m1, m2, m3, m4, m5 = st.columns(5)
-                with m1: st.metric("即時價格", f"{current_price:.2f}", delta=f"{current_price - df['Close'].iloc[-2]:.2f}" if len(df) > 1 else None, help="此為 Yahoo Finance 提供之即時數據 (約 15 分鐘延遲)")
-                with m2: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                with m3: st.metric("預期報酬率", f"+{upside:.1f}%")
-                with m4: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                with m5: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                # --- 主角區 ---
+                st.markdown("### 🏆 市場核心數據")
+                h1, h2 = st.columns([1.2, 1])
+                with h1:
+                    st.metric("即時價格", f"{current_price:.2f}", delta=f"{change:.2f}", help="此為 Yahoo Finance 提供之數據 (約 15 分鐘延遲)")
+                with h2:
+                    st.metric("預期報酬率", f"+{upside:.1f}%", delta=f"RR: {rr:.1f}")
                 
-                st.caption(f"🕒 數據來源：Yahoo Finance (延遲約 15 分鐘) | 最後更新：{last_time}")
+                st.divider()
+                
+                # --- 詳細區 ---
+                st.markdown("#### 🔍 伏擊細節")
+                d1, d2, d3 = st.columns(3)
+                with d1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                with d2: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                with d3: st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
+                
+                st.caption(f"🕒 數據最後更新：{last_time} (Yahoo Finance 延遲約 15 分鐘)")
 
+                # --- 圖表區 ---
+                st.markdown("#### 📈 技術圖表 (SMC x Vegas)")
                 df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
                 df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
                 fig = go.Figure()
                 fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
-                fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
+                
+                fig.update_layout(
+                    template="plotly_dark", 
+                    height=550, 
+                    margin=dict(l=0, r=0, t=20, b=0), 
+                    xaxis_rangeslider_visible=False,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.error(f"無法取得 {ticker} 的歷史數據")
