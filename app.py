@@ -103,23 +103,33 @@ with st.expander("📖 系統原理與使用說明 (新手必讀)"):
 def render_stock_details(stock):
     ticker = stock['ticker']
     name = stock.get('name', ticker)
-    upside = stock.get('upside_pct', 0) * 100
-    rr = stock.get('rr_ratio', 0)
     
-    m1, m2, m3, m4, m5 = st.columns(5)
-    with m1: st.metric("當前價格", f"{stock.get('latest_close', 0):.2f}")
-    with m2: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-    with m3: st.metric("預期報酬率", f"+{upside:.1f}%")
-    with m4: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-    with m5: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-    
-    with st.spinner(f"載入 {ticker} 圖表..."):
+    with st.spinner(f"🚀 正在抓取 {ticker} 即時報價與圖表..."):
         try:
             t_obj = yf.Ticker(ticker)
+            # 抓取足以計算 EMA 的歷史數據
             df = t_obj.history(period='2y')
+            
             if not df.empty:
                 if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
                 df = df.loc[:, ~df.columns.duplicated()].copy()
+                
+                # 取得最即時價格
+                current_price = df['Close'].iloc[-1]
+                last_time = df.index[-1].strftime('%Y-%m-%d %H:%M')
+                
+                upside = stock.get('upside_pct', 0) * 100
+                rr = stock.get('rr_ratio', 0)
+                
+                m1, m2, m3, m4, m5 = st.columns(5)
+                with m1: st.metric("即時價格", f"{current_price:.2f}", delta=f"{current_price - df['Close'].iloc[-2]:.2f}" if len(df) > 1 else None)
+                with m2: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                with m3: st.metric("預期報酬率", f"+{upside:.1f}%")
+                with m4: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+                with m5: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                
+                st.caption(f"🕒 數據來源：Yahoo Finance | 最後更新：{last_time}")
+
                 df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
                 df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
                 fig = go.Figure()
@@ -131,7 +141,7 @@ def render_stock_details(stock):
             else:
                 st.error(f"無法取得 {ticker} 的歷史數據")
         except Exception as e:
-            st.error(f"渲染圖表時發生錯誤: {e}")
+            st.error(f"即時數據抓取失敗: {e}")
 
 # 取得資料
 all_signals = get_latest_signals()
