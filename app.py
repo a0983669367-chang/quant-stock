@@ -120,7 +120,7 @@ def render_stock_details(stock):
     ticker = stock['ticker']
     name = stock.get('name', ticker)
     
-    with st.spinner(f"🚀 正在抓取 {ticker} 即時報價與圖表..."):
+    with st.spinner(f"🚀 正在更新 {ticker} 報價與圖表..."):
         try:
             t_obj = yf.Ticker(ticker)
             df = t_obj.history(period='2y')
@@ -132,47 +132,47 @@ def render_stock_details(stock):
                 current_price = df['Close'].iloc[-1]
                 prev_price = df['Close'].iloc[-2] if len(df) > 1 else current_price
                 change = current_price - prev_price
-                last_time = df.index[-1].strftime('%Y-%m-%d %H:%M')
+                last_time = df.index[-1].strftime('%H:%M')
                 
                 upside = stock.get('upside_pct', 0) * 100
                 rr = stock.get('rr_ratio', 0)
                 
-                # --- 主角區 ---
-                st.markdown("### 🏆 市場核心數據")
-                h1, h2 = st.columns([1.2, 1])
-                with h1:
-                    st.metric("即時價格", f"{current_price:.2f}", delta=f"{change:.2f}", help="此為 Yahoo Finance 提供之數據 (約 15 分鐘延遲)")
-                with h2:
+                # --- 左右分欄排版 ---
+                col_left, col_right = st.columns([1, 1.8], gap="large")
+                
+                with col_left:
+                    st.markdown("### 🏆 核心數據")
+                    st.metric("即時價格", f"{current_price:.2f}", delta=f"{change:.2f}")
                     st.metric("預期報酬率", f"+{upside:.1f}%", delta=f"RR: {rr:.1f}")
-                
-                st.divider()
-                
-                # --- 詳細區 ---
-                st.markdown("#### 🔍 伏擊細節")
-                d1, d2, d3 = st.columns(3)
-                with d1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                with d2: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-                with d3: st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
-                
-                st.caption(f"🕒 數據最後更新：{last_time} (Yahoo Finance 延遲約 15 分鐘)")
+                    
+                    st.divider()
+                    
+                    st.markdown("#### 🔍 伏擊詳情")
+                    sm1, sm2 = st.columns(2)
+                    with sm1: st.metric("進場位", stock.get('entry_zone', 'N/A'))
+                    with sm2: st.metric("停損位", f"{stock.get('stop_loss', 0):.1f}")
+                    st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
+                    
+                    st.caption(f"🕒 更新時間：{last_time} (Yahoo 延遲約 15 分鐘)")
 
-                # --- 圖表區 ---
-                st.markdown("#### 📈 技術圖表 (SMC x Vegas)")
-                df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
-                df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
-                fig = go.Figure()
-                fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
-                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
-                
-                fig.update_layout(
-                    template="plotly_dark", 
-                    height=550, 
-                    margin=dict(l=0, r=0, t=20, b=0), 
-                    xaxis_rangeslider_visible=False,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                with col_right:
+                    st.markdown("#### 📈 技術圖表 (SMC x Vegas)")
+                    df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
+                    df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                    
+                    fig = go.Figure()
+                    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
+                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
+                    fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
+                    
+                    fig.update_layout(
+                        template="plotly_dark", 
+                        height=480, 
+                        margin=dict(l=0, r=0, t=10, b=0), 
+                        xaxis_rangeslider_visible=False,
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
             else:
                 st.error(f"無法取得 {ticker} 的歷史數據")
         except Exception as e:
