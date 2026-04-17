@@ -204,6 +204,13 @@ def calculate_smc_and_vegas(ticker):
 
     if status == "None": return None
 
+    # Calculate RR Ratio based on current price
+    if target1 and stop_loss:
+        price = float(latest['Close'])
+        risk = price - stop_loss
+        reward = target1 - price
+        if risk > 0: rr_ratio = reward / risk
+
     # Conservative Filters
     is_conservative = False
     if status != "None":

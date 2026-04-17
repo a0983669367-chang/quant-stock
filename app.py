@@ -12,6 +12,37 @@ st.set_page_config(page_title="台股 SMC x Vegas 量化監控系統", layout="w
 
 # 自定義 CSS 樣式
 st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    }
+    /* 全域字體放大 */
+    .stMarkdown p, .stMarkdown li {
+        font-size: 18px !important;
+        line-height: 1.6;
+    }
+    /* 摺疊面板標題樣式 */
+    .st-expanderHeader {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 12px 12px 0 0 !important;
+        line-height: 2 !important;
+    }
+    .st-expanderHeader p {
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: #f8fafc !important;
+    }
+    /* 指標數據放大 */
+    [data-testid="stMetricLabel"] p {
+        font-size: 16px !important;
+        color: #94a3b8 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 32px !important;
+        font-weight: 900 !important;
+    }
     /* 內容區塊強化 */
     .st-expanderContent {
         background: rgba(255, 255, 255, 0.015) !important;
@@ -19,22 +50,6 @@ st.markdown("""
         border-radius: 0 0 16px 16px !important;
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
         border-top: none !important;
-    }
-    /* 卡片式視覺 */
-    .stock-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 16px;
-        padding: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 20px;
-    }
-    /* 強力數據顯示 */
-    .hero-metric-box {
-        text-align: center;
-        padding: 15px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 12px;
-        border-left: 4px solid #3b82f6;
     }
 </style>
 """, unsafe_allow_html=True)
