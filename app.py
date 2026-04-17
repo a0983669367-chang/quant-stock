@@ -53,7 +53,7 @@ st.sidebar.title("⚙️ 系統設定")
 # 策略模式切換
 strategy_mode = st.sidebar.selectbox(
     "選擇策略模式",
-    ["🟢 穩健型 (Conservative)", "🔵 標準型 (Standard)"],
+    ["🔵 標準型 (Standard)", "🟢 穩健型 (Conservative)"],
     help="穩健型會過濾掉趨勢不明顯、盈虧比較差或大戶量能未確認的標的，追求更高的勝率。"
 )
 
@@ -100,6 +100,39 @@ with st.expander("📖 系統原理與使用說明 (新手必讀)"):
     *   **🔵 標準型**：只要結構符合即發出信號，捕捉更多補漲契機。
     """)
 
+def render_stock_details(stock):
+    ticker = stock['ticker']
+    name = stock.get('name', ticker)
+    upside = stock.get('upside_pct', 0) * 100
+    rr = stock.get('rr_ratio', 0)
+    
+    m1, m2, m3, m4, m5 = st.columns(5)
+    with m1: st.metric("當前價格", f"{stock.get('latest_close', 0):.2f}")
+    with m2: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+    with m3: st.metric("預期報酬率", f"+{upside:.1f}%")
+    with m4: st.metric("盈虧比 (RR)", f"{rr:.1f}")
+    with m5: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+    
+    with st.spinner(f"載入 {ticker} 圖表..."):
+        try:
+            t_obj = yf.Ticker(ticker)
+            df = t_obj.history(period='2y')
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+                df = df.loc[:, ~df.columns.duplicated()].copy()
+                df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
+                df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
+                fig = go.Figure()
+                fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
+                fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error(f"無法取得 {ticker} 的歷史數據")
+        except Exception as e:
+            st.error(f"渲染圖表時發生錯誤: {e}")
+
 # 取得資料
 all_signals = get_latest_signals()
 
@@ -138,28 +171,9 @@ with tab1:
                 name = stock.get('name', ticker)
                 upside = stock.get('upside_pct', 0) * 100
                 rr = stock.get('rr_ratio', 0)
-                label = f"⭐ **{ticker} {name}** | 預期報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                label = f"⭐ **{ticker} {name}** | 現價 **{stock.get('latest_close', 0):.2f}** | 預期報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
                 with st.expander(label):
-                    m1, m2, m3, m4 = st.columns(4)
-                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
-                    
-                    with st.spinner(f"載入 {ticker} 圖表..."):
-                        t_obj = yf.Ticker(ticker)
-                        df = t_obj.history(period='2y')
-                        if not df.empty:
-                            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                            df = df.loc[:, ~df.columns.duplicated()].copy()
-                            df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
-                            df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
-                            fig = go.Figure()
-                            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
-                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d')))
-                            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa')))
-                            fig.update_layout(template="plotly_dark", height=400, margin=dict(l=0, r=0, t=30, b=0), xaxis_rangeslider_visible=False)
-                            st.plotly_chart(fig, use_container_width=True)
+                    render_stock_details(stock)
 
         # 2. 🔥 已觸發進場帶 (Triggered)
         if triggered:
@@ -169,13 +183,9 @@ with tab1:
                 name = stock.get('name', ticker)
                 upside = stock.get('upside_pct', 0) * 100
                 rr = stock.get('rr_ratio', 0)
-                label = f"🟢 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                label = f"🟢 **{ticker} {name}** | 現價 **{stock.get('latest_close', 0):.2f}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
                 with st.expander(label):
-                    m1, m2, m3, m4 = st.columns(4)
-                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                    render_stock_details(stock)
 
         # 3. ⏳ 其他潛在標的
         other_potential = potential[5:]
@@ -186,13 +196,9 @@ with tab1:
                 name = stock.get('name', ticker)
                 upside = stock.get('upside_pct', 0) * 100
                 rr = stock.get('rr_ratio', 0)
-                label = f"🟡 **{ticker} {name}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
+                label = f"🟡 **{ticker} {name}** | 現價 **{stock.get('latest_close', 0):.2f}** | 報酬 **+{upside:.1f}%** | RR **{rr:.1f}**"
                 with st.expander(label):
-                    m1, m2, m3, m4 = st.columns(4)
-                    with m1: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
-                    with m2: st.metric("預期報酬率", f"+{upside:.1f}%")
-                    with m3: st.metric("盈虧比 (RR)", f"{rr:.1f}")
-                    with m4: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                    render_stock_details(stock)
 
 with tab2:
     st.markdown("### 📂 歷史成形標的回顧 & 2026 回測成效")
