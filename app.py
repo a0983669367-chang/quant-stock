@@ -87,6 +87,13 @@ if st.sidebar.button("🔄 立即重新掃描全市場"):
 st.title("📈 台股 SMC x Vegas 量化監控系統")
 st.markdown("針對台股前 150 大市值標的進行 SMC (Smart Money Concepts) 結構與 Vegas 通道分析，尋找高勝率伏擊點。")
 
+# 頁面頂端通知欄
+c1, c2 = st.columns([1, 1])
+with c1:
+    st.info(f"💡 **目前監控模式**：{strategy_mode}")
+with c2:
+    st.warning("⏱️ **報價延遲說明**：系統數據約有 15 分鐘延遲")
+
 with st.expander("📖 系統原理與使用說明 (新手必讀)"):
     st.markdown("""
     ### 核心選股邏輯 (SMC x Vegas)
