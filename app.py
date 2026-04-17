@@ -40,8 +40,8 @@ st.markdown("""
         font-weight: 600 !important;
     }
     [data-testid="stMetricValue"] {
-        font-size: 32px !important;
-        font-weight: 900 !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
     }
     /* 內容區塊強化 */
     .st-expanderContent {
@@ -149,10 +149,12 @@ def render_stock_details(stock):
                     st.divider()
                     
                     st.markdown("#### 🔍 伏擊詳情")
+                    # 進場位通常是區間，給予完整寬度避免截斷
+                    st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
+                    
                     sm1, sm2 = st.columns(2)
-                    with sm1: st.metric("進場位", stock.get('entry_zone', 'N/A'))
-                    with sm2: st.metric("停損位", f"{stock.get('stop_loss', 0):.1f}")
-                    st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
+                    with sm1: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
+                    with sm2: st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
                     
                     st.caption(f"🕒 更新時間：{last_time} (日線 | Yahoo 延遲)")
 
