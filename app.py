@@ -57,6 +57,8 @@ strategy_mode = st.sidebar.selectbox(
     help="穩健型會過濾掉趨勢不明顯、盈虧比較差或大戶量能未確認的標的，追求更高的勝率。"
 )
 
+st.sidebar.info("📢 **數據延遲公告**：本系統報價串接自 Yahoo Finance 免費 API，台股行情通常有 **15 分鐘延遲**，請投資人留意，勿作為當沖即時依據。")
+
 is_conservative_only = "穩健型" in strategy_mode
 
 # 透過 Streamlit 原生機制實作即時掃描與快取
@@ -122,13 +124,13 @@ def render_stock_details(stock):
                 rr = stock.get('rr_ratio', 0)
                 
                 m1, m2, m3, m4, m5 = st.columns(5)
-                with m1: st.metric("即時價格", f"{current_price:.2f}", delta=f"{current_price - df['Close'].iloc[-2]:.2f}" if len(df) > 1 else None)
+                with m1: st.metric("即時價格", f"{current_price:.2f}", delta=f"{current_price - df['Close'].iloc[-2]:.2f}" if len(df) > 1 else None, help="此為 Yahoo Finance 提供之即時數據 (約 15 分鐘延遲)")
                 with m2: st.metric("建議進場位", stock.get('entry_zone', 'N/A'))
                 with m3: st.metric("預期報酬率", f"+{upside:.1f}%")
                 with m4: st.metric("盈虧比 (RR)", f"{rr:.1f}")
                 with m5: st.metric("防守停損位", f"{stock.get('stop_loss', 0):.1f}")
                 
-                st.caption(f"🕒 數據來源：Yahoo Finance | 最後更新：{last_time}")
+                st.caption(f"🕒 數據來源：Yahoo Finance (延遲約 15 分鐘) | 最後更新：{last_time}")
 
                 df['EMA_144'] = df['Close'].ewm(span=144, adjust=False).mean()
                 df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
