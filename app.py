@@ -123,7 +123,8 @@ def render_stock_details(stock):
     with st.spinner(f"🚀 正在更新 {ticker} 報價與圖表..."):
         try:
             t_obj = yf.Ticker(ticker)
-            df = t_obj.history(period='2y')
+            # 強制使用日線 (1d)
+            df = t_obj.history(period='2y', interval='1d')
             
             if not df.empty:
                 if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
@@ -153,7 +154,7 @@ def render_stock_details(stock):
                     with sm2: st.metric("停損位", f"{stock.get('stop_loss', 0):.1f}")
                     st.metric("目標價位", f"{stock.get('target1', 0):.1f}")
                     
-                    st.caption(f"🕒 更新時間：{last_time} (Yahoo 延遲約 15 分鐘)")
+                    st.caption(f"🕒 更新時間：{last_time} (日線 | Yahoo 延遲)")
 
                 with col_right:
                     st.markdown("#### 📈 技術圖表 (SMC x Vegas)")
@@ -161,7 +162,24 @@ def render_stock_details(stock):
                     df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
                     
                     fig = go.Figure()
+                    
+                    # 1. 繪製 K 線
                     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='盤勢'))
+                    
+                    # 2. 佈置 OB 與 FVG 區塊 (從 stock 取得數據)
+                    ob = stock.get('ob')
+                    ob_date = stock.get('ob_date')
+                    if ob and ob_date:
+                        fig.add_shape(type="rect", x0=ob_date, x1=df.index[-1], y0=ob[1], y1=ob[0],
+                                      line=dict(width=0), fillcolor="rgba(59, 130, 246, 0.25)", layer="below")
+                    
+                    fvg = stock.get('fvg')
+                    fvg_date = stock.get('fvg_date')
+                    if fvg and fvg_date:
+                        fig.add_shape(type="rect", x0=fvg_date, x1=df.index[-1], y0=fvg[1], y1=fvg[0],
+                                      line=dict(width=0), fillcolor="rgba(16, 185, 129, 0.25)", layer="below")
+
+                    # 3. 繪製 Vegas 通道
                     fig.add_trace(go.Scatter(x=df.index, y=df['EMA_144'], name='EMA 144', line=dict(color='#fcd34d', width=1.5)))
                     fig.add_trace(go.Scatter(x=df.index, y=df['EMA_576'], name='EMA 576', line=dict(color='#a78bfa', width=1.5)))
                     
@@ -176,7 +194,7 @@ def render_stock_details(stock):
             else:
                 st.error(f"無法取得 {ticker} 的歷史數據")
         except Exception as e:
-            st.error(f"即時數據抓取失敗: {e}")
+            st.error(f"圖表渲染失敗: {e}")
 
 # 取得資料
 all_signals = get_latest_signals()
