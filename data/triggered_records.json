@@ -1,5 +1,27 @@
 [
     {
+        "ticker": "2884.TW",
+        "date": "2026-04-17",
+        "entry_price": 32.75,
+        "target": 35.5,
+        "stop_loss": 31.36,
+        "is_conservative": true,
+        "rr_ratio": 1.9784172661870496,
+        "name": "玉山金",
+        "result": "⏳ 進行中"
+    },
+    {
+        "ticker": "2892.TW",
+        "date": "2026-04-17",
+        "entry_price": 28.799999237060547,
+        "target": 29.100000381469727,
+        "stop_loss": 27.831999626159668,
+        "is_conservative": false,
+        "rr_ratio": 0.3099186621882838,
+        "name": "第一金",
+        "result": "⏳ 進行中"
+    },
+    {
         "ticker": "6282.TW",
         "date": "2026-04-15",
         "entry_price": 51.0,
@@ -41,7 +63,7 @@
         "is_conservative": false,
         "rr_ratio": 1.1506781903658145,
         "name": "聯電",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "3231.TW",
@@ -63,7 +85,7 @@
         "is_conservative": false,
         "rr_ratio": 0.8205689277899343,
         "name": "瑞昱",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "2301.TW",

@@ -112,7 +112,7 @@ def run_backtest_for_stock(ticker):
     try:
         # 使用 safer Ticker().history 避免 MultiIndex 併發衝突
         t_obj = yf.Ticker(ticker)
-        df = t_obj.history(start="2023-01-01", end="2026-04-16", raise_errors=False)
+        df = t_obj.history(start="2023-01-01", raise_errors=False)
         
         if df.empty: return []
         
