@@ -249,7 +249,7 @@ def calculate_smc_and_vegas(ticker):
         # Rule 3: Volume Spike (Vol > 1.1 * Vol MA20) - Proxy for Institutional Buying (Relaxed from 1.2)
         # Rule 4: EMA 144 Slope > 0 (Overall Bullish)
         
-        vol_spike = latest['Vol_MA1'] > (latest['Vol_MA20'] * 1.1) if 'Vol_MA20' in latest else False
+        vol_spike = latest['Volume'] > (latest['Vol_MA20'] * 1.1) if 'Vol_MA20' in latest else False
         if current_rsi < 55 and macd_cross and vol_spike and ema_slope > 0:
             is_conservative = True
 
