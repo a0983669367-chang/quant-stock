@@ -72,15 +72,13 @@ INDUSTRY_MAP = {
     'Airlines': '航空業'
 }
 
-def calculate_rsi(series, period=14):
+def calculate_rsi(df_or_series, window=14):
+    """支持傳入 DataFrame 或 Series"""
+    if isinstance(df_or_series, pd.DataFrame):
+        series = df_or_series['Close']
+    else:
+        series = df_or_series
     delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
-
-def calculate_rsi(df, window=14):
-    delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / loss
