@@ -79,6 +79,20 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
+def calculate_rsi(df, window=14):
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
+def calculate_macd(df):
+    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
+    macd = exp1 - exp2
+    signal = macd.ewm(span=9, adjust=False).mean()
+    return macd, signal
+
 def get_swing_lows(df, window=3):
     swing_lows = []
     for i in range(window, len(df) - window):
@@ -181,6 +195,24 @@ def calculate_smc_and_vegas(ticker):
                 fvg_start_date = df_recent.index[fvg_idx].strftime('%Y-%m-%d')
                 break
 
+    # Technical Indicators
+    rsi = calculate_rsi(df_recent)
+    macd, macd_signal = calculate_macd(df_recent)
+    
+    current_rsi = rsi.iloc[-1]
+    last_macd = macd.iloc[-1]
+    last_signal = macd_signal.iloc[-1]
+    prev_macd = macd.iloc[-2] if len(macd) > 1 else last_macd
+    prev_signal = macd_signal.iloc[-2] if len(macd_signal) > 1 else last_signal
+
+    # MACD Golden Cross within last 7 days (Relaxed from 3)
+    macd_cross = False
+    for i in range(-1, -8, -1):
+        if i < -len(macd): break
+        if macd.iloc[i] > macd_signal.iloc[i] and (i-1 >= -len(macd)) and macd.iloc[i-1] <= macd_signal.iloc[i-1]:
+            macd_cross = True
+            break
+            
     swing_highs = get_swing_highs(df_recent, window=5)
     targets = [float(df_recent['High'].iloc[sh_idx]) for sh_idx in reversed(swing_highs) if sh_idx == len(df_recent) - 1 or df_recent['High'].iloc[sh_idx+1:].max() <= df_recent['High'].iloc[sh_idx]]
     target1 = targets[0] if targets else None
@@ -214,10 +246,13 @@ def calculate_smc_and_vegas(ticker):
     # Conservative Filters
     is_conservative = False
     if status != "None":
-        # Rule 1: RR Ratio >= 1.2 (Relaxed from 1.5)
-        # Rule 2: EMA 144 Slope > 0 (Bullish trend, relaxed from 0.05)
-        # Rule 3: Volume MA5 > Volume MA20 (Buying force)
-        if rr_ratio >= 1.2 and ema_slope > 0 and latest['Vol_MA5'] > latest['Vol_MA20']:
+        # Rule 1: RSI < 55 (Relaxed from 45)
+        # Rule 2: MACD Golden Cross (Momentum confirmed)
+        # Rule 3: Volume Spike (Vol > 1.1 * Vol MA20) - Proxy for Institutional Buying (Relaxed from 1.2)
+        # Rule 4: EMA 144 Slope > 0 (Overall Bullish)
+        
+        vol_spike = latest['Vol_MA1'] > (latest['Vol_MA20'] * 1.1) if 'Vol_MA20' in latest else False
+        if current_rsi < 55 and macd_cross and vol_spike and ema_slope > 0:
             is_conservative = True
 
     # Fetch Fundamentals for candidates

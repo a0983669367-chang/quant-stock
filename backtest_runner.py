@@ -7,7 +7,7 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # Reuse UNIVERSE and Maps from data_fetcher
-from data_fetcher import UNIVERSE, NAME_MAP, INDUSTRY_MAP, calculate_rsi, get_swing_lows, get_swing_highs
+from data_fetcher import UNIVERSE, NAME_MAP, INDUSTRY_MAP, calculate_rsi, calculate_macd, get_swing_lows, get_swing_highs
 
 def analyze_slice(df_slice, ticker):
     """
@@ -27,6 +27,19 @@ def analyze_slice(df_slice, ticker):
     # EMA Slope (5 days)
     prev_5 = df_slice.iloc[-6]['EMA_144'] if len(df_slice) >= 6 else latest['EMA_144']
     ema_slope = (latest['EMA_144'] - prev_5) / prev_5 * 100
+    
+    # Technical Indicators (Pre-calculated in main loop or here)
+    current_rsi = latest['RSI']
+    
+    # MACD Golden Cross within last 7 days
+    macd_cross = False
+    for i in range(-1, -8, -1):
+        idx = len(df_slice) + i
+        if idx < 1: break
+        if df_slice['MACD'].iloc[idx] > df_slice['MACD_Signal'].iloc[idx] and \
+           df_slice['MACD'].iloc[idx-1] <= df_slice['MACD_Signal'].iloc[idx-1]:
+            macd_cross = True
+            break
     
     # Check SMC Structures in recent window
     df_recent = df_slice.tail(100).copy()
@@ -90,10 +103,13 @@ def analyze_slice(df_slice, ticker):
         # Check Conservative
         is_conservative = False
         vol_ma20 = latest['Vol_MA20'] if 'Vol_MA20' in latest else 1
-        vol_ma5 = latest.get('Vol_MA5', 1)
-        # Rule 1: RR Ratio >= 1.2 (Relaxed from 1.5)
-        # Rule 2: EMA 144 Slope > 0 (Bullish trend, relaxed from 0.05)
-        if rr_ratio >= 1.2 and ema_slope > 0 and vol_ma5 > vol_ma20:
+        vol_ma1 = float(latest['Volume'])
+        
+        # Rule 1: RSI < 55
+        # Rule 2: MACD Golden Cross (last 7 days)
+        # Rule 3: Volume Spike (Vol > 1.1 * Vol MA20)
+        # Rule 4: EMA 144 Slope > 0
+        if current_rsi < 55 and macd_cross and vol_ma1 > (vol_ma20 * 1.1) and ema_slope > 0:
             is_conservative = True
 
         return {
@@ -144,8 +160,14 @@ def run_backtest_for_stock(ticker):
     df['EMA_169'] = df['Close'].ewm(span=169, adjust=False).mean()
     df['EMA_576'] = df['Close'].ewm(span=576, adjust=False).mean()
     df['EMA_676'] = df['Close'].ewm(span=676, adjust=False).mean()
-    df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
+    df['Vol_MA1'] = df['Volume']
     df['Vol_MA20'] = df['Volume'].rolling(window=20).mean()
+    
+    # Pre-calculate RSI and MACD for fast lookup in loop
+    df['RSI'] = calculate_rsi(df)
+    macd_line, signal_line = calculate_macd(df)
+    df['MACD'] = macd_line
+    df['MACD_Signal'] = signal_line
 
     results = []
     # Start loop from 2026-01-01
