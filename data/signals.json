@@ -1,0 +1,152 @@
+[
+    {
+        "ticker": "1519.TW",
+        "name": "華城",
+        "industry": "電力重電",
+        "market_cap": 275448233984.0,
+        "status": "Potential",
+        "is_vegas_bullish": true,
+        "rsi": 41.964285714285715,
+        "vol_ratio": 1.827357925583439,
+        "pe_ratio": 62.553802,
+        "div_yield": 103.0,
+        "ob": [
+            814.0,
+            778.0
+        ],
+        "ob_date": "2026-04-07",
+        "fvg": [
+            823.0,
+            819.0
+        ],
+        "fvg_date": "2026-04-10",
+        "target1": 1115.0,
+        "stop_loss": 762.4399999999999,
+        "entry_zone": "778.00 - 823.00",
+        "latest_close": 872.0,
+        "upside_pct": 0.2786697247706422,
+        "rr_ratio": 0.0,
+        "ema_slope": 0.4143798500624703,
+        "is_conservative": false
+    },
+    {
+        "ticker": "6239.TW",
+        "name": "力成",
+        "industry": "半導體",
+        "market_cap": 156994355200.0,
+        "status": "Potential",
+        "is_vegas_bullish": true,
+        "rsi": 55.35714285714286,
+        "vol_ratio": 0.6557621842122902,
+        "pe_ratio": 28.52349,
+        "div_yield": 333.0,
+        "ob": [
+            196.0,
+            185.5
+        ],
+        "ob_date": "2026-03-31",
+        "fvg": [
+            197.5,
+            196.0
+        ],
+        "fvg_date": "2026-03-31",
+        "target1": 263.0,
+        "stop_loss": 181.79,
+        "entry_zone": "185.50 - 197.50",
+        "latest_close": 212.5,
+        "upside_pct": 0.2376470588235294,
+        "rr_ratio": 0.0,
+        "ema_slope": 0.8870404833863399,
+        "is_conservative": false
+    },
+    {
+        "ticker": "6282.TW",
+        "name": "康舒",
+        "industry": "電力重電",
+        "market_cap": 43009703936.0,
+        "status": "Potential",
+        "is_vegas_bullish": true,
+        "rsi": 56.14524234833596,
+        "vol_ratio": 0.8945712356644651,
+        "pe_ratio": 333.99997,
+        "div_yield": 98.0,
+        "ob": [
+            44.900001525878906,
+            42.5
+        ],
+        "ob_date": "2026-04-07",
+        "fvg": [
+            49.650001525878906,
+            46.70000076293945
+        ],
+        "fvg_date": "2026-04-13",
+        "target1": 55.0,
+        "stop_loss": 41.65,
+        "entry_zone": "42.50 - 49.65",
+        "latest_close": 50.099998474121094,
+        "upside_pct": 0.09780442465302625,
+        "rr_ratio": 0.0,
+        "ema_slope": 0.9257631168150704,
+        "is_conservative": false
+    },
+    {
+        "ticker": "2884.TW",
+        "name": "玉山金",
+        "industry": "Banks - Regional",
+        "market_cap": 533741993984.0,
+        "status": "Potential",
+        "is_vegas_bullish": true,
+        "rsi": 62.85719268186881,
+        "vol_ratio": 0.833703845067902,
+        "pe_ratio": 15.566038,
+        "div_yield": 364.0,
+        "ob": [
+            32.25,
+            32.0
+        ],
+        "ob_date": "2026-04-13",
+        "fvg": [
+            32.599998474121094,
+            32.25
+        ],
+        "fvg_date": "2026-04-13",
+        "target1": 35.5,
+        "stop_loss": 31.36,
+        "entry_zone": "32.00 - 32.60",
+        "latest_close": 33.0,
+        "upside_pct": 0.07575757575757576,
+        "rr_ratio": 0.0,
+        "ema_slope": 0.04806129054197932,
+        "is_conservative": false
+    },
+    {
+        "ticker": "5347.TWO",
+        "name": "世界",
+        "industry": "半導體",
+        "market_cap": 254983340032.0,
+        "status": "Potential",
+        "is_vegas_bullish": true,
+        "rsi": 56.91056910569106,
+        "vol_ratio": 2.0447556527588286,
+        "pe_ratio": 31.398106,
+        "div_yield": 353.0,
+        "ob": [
+            118.5,
+            110.0
+        ],
+        "ob_date": "2026-04-02",
+        "fvg": [
+            125.5,
+            118.5
+        ],
+        "fvg_date": "2026-04-02",
+        "target1": 140.5,
+        "stop_loss": 107.8,
+        "entry_zone": "110.00 - 125.50",
+        "latest_close": 132.5,
+        "upside_pct": 0.06037735849056604,
+        "rr_ratio": 0.0,
+        "ema_slope": 1.0591697091951542,
+        "is_conservative": false
+    }
+]
