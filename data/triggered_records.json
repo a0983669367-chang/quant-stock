@@ -1,5 +1,16 @@
 [
     {
+        "ticker": "3231.TW",
+        "date": "2026-04-21",
+        "entry_price": 144.5,
+        "target": 161.0,
+        "stop_loss": 129.35999999999999,
+        "is_conservative": false,
+        "rr_ratio": 1.0898282694848074,
+        "name": "緯創",
+        "result": "⏳ 進行中"
+    },
+    {
         "ticker": "2884.TW",
         "date": "2026-04-17",
         "entry_price": 32.75,
@@ -96,7 +107,7 @@
         "is_conservative": false,
         "rr_ratio": 0.6794875605623754,
         "name": "光寶科",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "2356.TW",
@@ -184,7 +195,7 @@
         "is_conservative": false,
         "rr_ratio": 1.3930356596070212,
         "name": "華新",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "3231.TW",
@@ -217,7 +228,7 @@
         "is_conservative": false,
         "rr_ratio": 1.20817843866171,
         "name": "世界",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "2317.TW",
@@ -283,7 +294,7 @@
         "is_conservative": false,
         "rr_ratio": 2.3143774796901564,
         "name": "亞德客-KY",
-        "result": "⏳ 進行中"
+        "result": "🎯 止盈"
     },
     {
         "ticker": "1513.TW",
