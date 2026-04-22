@@ -316,6 +316,19 @@ with tab2:
             try:
                 with open(history_file, 'r', encoding='utf-8') as f:
                     records = json.load(f)
+                    
+                # 【新增】初次同步邏輯：如果 Google Sheets 成功連線但是空的，自動將 JSON 資料寫入
+                if HAS_GSHEETS and records:
+                    try:
+                        df_to_gs = pd.DataFrame(records)
+                        cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
+                        for col in cols:
+                            if col not in df_to_gs.columns: df_to_gs[col] = ""
+                        df_to_gs = df_to_gs[cols]
+                        conn.update(worksheet="History", data=df_to_gs)
+                        st.sidebar.success("🔄 已自動將歷史紀錄同步至空白的 Google 試算表！")
+                    except Exception as sync_e:
+                        st.sidebar.error(f"初次同步失敗: {sync_e}")
             except: pass
 
     if records:
