@@ -3,3 +3,4 @@ yfinance
 pandas==2.2.2
 plotly==5.22.0
 apscheduler==3.10.4
+st-gsheets-connection

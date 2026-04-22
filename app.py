@@ -61,8 +61,16 @@ st.sidebar.title("⚙️ 系統設定")
 strategy_mode = st.sidebar.selectbox(
     "選擇策略模式",
     ["🔵 標準型 (Standard)", "🟢 穩健型 (Conservative)"],
-    help="穩健型會過濾掉趨勢不明顯、盈虧比較差或大戶量能未確認的標的，追求更高的勝率。"
+    help="穩健型會過濾掉趨勢不明顯、RSI 過高或 MACD 未金叉的標的，追求更高的勝率。"
 )
+
+# Google Sheets 串接 (可選)
+try:
+    from streamlit_gsheets import GSheetsConnection
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    HAS_GSHEETS = True
+except Exception:
+    HAS_GSHEETS = False
 
 st.sidebar.info("📢 **數據延遲公告**：本系統報價串接自 Yahoo Finance 免費 API，台股行情通常有 **15 分鐘延遲**，請投資人留意，勿作為當沖即時依據。")
 
@@ -90,6 +98,19 @@ def refresh_data():
 
 if st.sidebar.button("🔄 立即重新掃描全市場"):
     refresh_data()
+
+if st.sidebar.button("🛠️ 補全最近 7 日紀錄"):
+    with st.spinner("⏳ 正在回溯掃描過去 7 天數據..."):
+        try:
+            # 這裡我們調用修補函數
+            changed = data_fetcher.repair_history(days=7)
+            if changed:
+                st.sidebar.success("✅ 補全完成！已更新歷史紀錄。")
+                st.rerun()
+            else:
+                st.sidebar.info("ℹ️ 過去 7 天無新觸發標的，或紀錄已是最新。")
+        except Exception as e:
+            st.sidebar.error(f"❌ 修補失敗: {e}")
 
 st.title("📈 台股 SMC x Vegas 量化監控系統")
 st.markdown("針對台股前 150 大市值標的進行 SMC (Smart Money Concepts) 結構與 Vegas 通道分析，尋找高勝率伏擊點。")

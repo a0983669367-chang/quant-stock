@@ -293,31 +293,34 @@ def calculate_smc_and_vegas(ticker):
         "upside_pct": float((target1 - latest['Close']) / latest['Close']) if target1 and target1 > latest['Close'] else 0.0,
         "rr_ratio": float(rr_ratio),
         "ema_slope": float(ema_slope),
-        "is_conservative": bool(is_conservative)
+        "is_conservative": bool(is_conservative),
+        "date": datetime.datetime.now().strftime('%Y-%m-%d')
     }
 
-def update_triggered_history(signals):
-    """將已成形的標的存入歷史紀錄檔，確保持久化"""
+def update_triggered_history(new_signals, repair=False):
+    """
+    更新歷史紀錄庫。
+    new_signals: 掃描到的訊號列表
+    repair: 是否為修補模式（若是，則會比對日期與 Ticker 避免重複）
+    """
     history_file = 'data/triggered_records.json'
-    today = datetime.datetime.now().strftime('%Y-%m-%d')
-    
-    # 讀取現有紀錄
     records = []
+    
     if os.path.exists(history_file):
         try:
             with open(history_file, 'r', encoding='utf-8') as f:
                 records = json.load(f)
-        except: records = []
-        
-    # 找出本次掃描中「已成形」的標的
-    new_count = 0
-    for s in signals:
+        except: pass
+
+    existing_keys = set([f"{r['date']}_{r['ticker']}" for r in records])
+    updated = False
+
+    for s in new_signals:
+        # 只處理觸發標的
         if s.get('status') == 'Triggered':
-            # 檢查是否已存在 (同標的 + 同日期)
-            exists = any(r['ticker'] == s['ticker'] and r['date'] == today for r in records)
-            if not exists:
-                records.append({
-                    "date": today,
+            key = f"{s['date']}_{s['ticker']}"
+            if key not in existing_keys:
+                new_record = {
                     "ticker": s['ticker'],
                     "name": s['name'],
                     "target": s['target1'],
