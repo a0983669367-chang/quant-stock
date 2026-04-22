@@ -295,19 +295,37 @@ with tab2:
     else:
         st.info("💡 **標準型策略評價**：全方位監控所有符合 SMC 結構與 Vegas 通道的標的。在強多頭市場中能捕捉到更多二、三線補漲標的，但需注意在市場修正式回檔中可能面臨較多止損。")
 
-    history_file = 'data/triggered_records.json'
-    if os.path.exists(history_file):
+    records = []
+    
+    # 優先嘗試從 Google Sheets 讀取
+    if HAS_GSHEETS:
         try:
-            with open(history_file, 'r', encoding='utf-8') as f:
-                records = json.load(f)
-            if records:
-                raw_df = pd.DataFrame(records)
-                if is_conservative_only:
-                    df_h = raw_df[raw_df['is_conservative'] == True].copy() if 'is_conservative' in raw_df.columns else pd.DataFrame()
-                else:
-                    df_h = raw_df
-                
-                if not df_h.empty:
+            df_gs = conn.read(worksheet="History", usecols=list(range(9))) # 讀取前 9 個欄位
+            if not df_gs.empty:
+                # 過濾掉全是 NaN 的空列
+                df_gs = df_gs.dropna(how='all')
+                if not df_gs.empty:
+                    records = df_gs.to_dict('records')
+        except Exception as e:
+            st.warning(f"⚠️ 無法讀取 Google Sheets，將回退至本地檔案。錯誤: {e}")
+
+    # 若 GSheets 沒有資料或尚未設定，回退使用本地 JSON
+    if not records:
+        history_file = 'data/triggered_records.json'
+        if os.path.exists(history_file):
+            try:
+                with open(history_file, 'r', encoding='utf-8') as f:
+                    records = json.load(f)
+            except: pass
+
+    if records:
+        raw_df = pd.DataFrame(records)
+        if is_conservative_only:
+            df_h = raw_df[raw_df['is_conservative'] == True].copy() if 'is_conservative' in raw_df.columns else pd.DataFrame()
+        else:
+            df_h = raw_df
+        
+        if not df_h.empty:
                     wins = len(df_h[df_h['result'] == '🎯 止盈'])
                     losses = len(df_h[df_h['result'] == '🛡️ 止損'])
                     running = len(df_h[df_h['result'] == '⏳ 進行中'])

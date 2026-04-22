@@ -225,6 +225,21 @@ def main():
     os.makedirs('data', exist_ok=True)
     with open('data/triggered_records.json', 'w', encoding='utf-8') as f:
         json.dump(all_records, f, ensure_ascii=False, indent=4)
+        
+    try:
+        import streamlit as st
+        from streamlit_gsheets import GSheetsConnection
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df_to_gs = pd.DataFrame(all_records)
+        cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
+        for col in cols:
+            if col not in df_to_gs.columns:
+                df_to_gs[col] = ""
+        df_to_gs = df_to_gs[cols]
+        conn.update(worksheet="History", data=df_to_gs)
+        print("Successfully updated Google Sheets 'History' worksheet.")
+    except Exception as e:
+        print(f"Google Sheets update skipped or failed: {e}")
     
     print(f"Backtest complete. Generated {len(all_records)} records.")
 

@@ -5,6 +5,7 @@ import json
 import os
 import datetime
 import concurrent.futures
+import streamlit as st
 
 # 台股前 150 大市值與熱門標的
 UNIVERSE = [
@@ -338,9 +339,28 @@ def update_triggered_history(new_signals, repair=False):
     if updated:
         # 按日期降序排列
         records.sort(key=lambda x: x['date'], reverse=True)
+        
+        # 1. 寫入本地 JSON (Fallback & Local Dev)
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(records, f, ensure_ascii=False, indent=4)
         print(f"Updated triggered_records.json")
+        
+        # 2. 嘗試寫入 Google Sheets
+        try:
+            from streamlit_gsheets import GSheetsConnection
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            # 轉換 records 為 DataFrame 並更新
+            df_to_gs = pd.DataFrame(records)
+            # 確保順序與我們預期一致
+            cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
+            for col in cols:
+                if col not in df_to_gs.columns:
+                    df_to_gs[col] = ""
+            df_to_gs = df_to_gs[cols]
+            conn.update(worksheet="History", data=df_to_gs)
+            print("Successfully updated Google Sheets 'History' worksheet.")
+        except Exception as e:
+            print(f"Google Sheets update skipped or failed: {e}")
     
     return updated
 
