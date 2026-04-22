@@ -326,23 +326,21 @@ with tab2:
             df_h = raw_df
         
         if not df_h.empty:
-                    wins = len(df_h[df_h['result'] == '🎯 止盈'])
-                    losses = len(df_h[df_h['result'] == '🛡️ 止損'])
-                    running = len(df_h[df_h['result'] == '⏳ 進行中'])
-                    win_rate = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
-                    
-                    m_c1, m_c2, m_c3, m_c4 = st.columns(4)
-                    with m_c1: st.metric("歷史勝率", f"{win_rate:.1f}%")
-                    with m_c2: st.metric("累積止盈", f"{wins} 筆")
-                    with m_c3: st.metric("累積止損", f"{losses} 筆")
-                    with m_c4: st.metric("追蹤中", f"{running} 筆")
-                    
-                    df_display = df_h[["date", "ticker", "name", "entry_price", "target", "stop_loss", "result"]]
-                    df_display.columns = ["日期", "代號", "名稱", "進場價", "目標價", "停損價", "最終成效"]
-                    st.dataframe(df_display, use_container_width=True, hide_index=True)
-                else:
-                    st.warning("⚠️ 穩健模式下紀錄較少，請切換模式對比。")
-            else: st.info("目前尚無紀錄。")
-        except Exception as e: st.error(f"讀取紀錄出錯: {e}")
+            wins = len(df_h[df_h['result'] == '🎯 止盈'])
+            losses = len(df_h[df_h['result'] == '🛡️ 止損'])
+            running = len(df_h[df_h['result'] == '⏳ 進行中'])
+            win_rate = (wins / (wins + losses) * 100) if (wins + losses) > 0 else 0
+            
+            m_c1, m_c2, m_c3, m_c4 = st.columns(4)
+            with m_c1: st.metric("歷史勝率", f"{win_rate:.1f}%")
+            with m_c2: st.metric("累積止盈", f"{wins} 筆")
+            with m_c3: st.metric("累積止損", f"{losses} 筆")
+            with m_c4: st.metric("追蹤中", f"{running} 筆")
+            
+            df_display = df_h[["date", "ticker", "name", "entry_price", "target", "stop_loss", "result"]]
+            df_display.columns = ["日期", "代號", "名稱", "進場價", "目標價", "停損價", "最終成效"]
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+        else:
+            st.warning("⚠️ 目前模式下尚無符合條件的紀錄，請切換模式對比。")
     else:
-        st.info("歷史紀錄檔案尚未建立。")
+        st.info("目前尚無歷史紀錄。")
