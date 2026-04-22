@@ -64,15 +64,7 @@ strategy_mode = st.sidebar.selectbox(
     help="穩健型會過濾掉趨勢不明顯、RSI 過高或 MACD 未金叉的標的，追求更高的勝率。"
 )
 
-# Google Sheets 串接 (可選)
-try:
-    from streamlit_gsheets import GSheetsConnection
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    HAS_GSHEETS = True
-    GSHEETS_ERR = None
-except Exception as e:
-    HAS_GSHEETS = False
-    GSHEETS_ERR = str(e)
+
 
 st.sidebar.info("📢 **數據延遲公告**：本系統報價串接自 Yahoo Finance 免費 API，台股行情通常有 **15 分鐘延遲**，請投資人留意，勿作為當沖即時依據。")
 
@@ -112,28 +104,6 @@ if st.sidebar.button("🛠️ 補全最近 7 日紀錄"):
                 st.sidebar.info("ℹ️ 過去 7 天無新觸發標的，或紀錄已是最新。")
         except Exception as e:
             st.sidebar.error(f"❌ 修補失敗: {e}")
-
-if st.sidebar.button("📤 強制同步至 Google 試算表"):
-    with st.spinner("⏳ 正在強制同步..."):
-        if not HAS_GSHEETS:
-            st.sidebar.error(f"❌ 尚未偵測到 Google Sheets 連線設定！錯誤原因: {GSHEETS_ERR}")
-        else:
-            try:
-                history_file = 'data/triggered_records.json'
-                if os.path.exists(history_file):
-                    with open(history_file, 'r', encoding='utf-8') as f:
-                        recs = json.load(f)
-                    df_to_gs = pd.DataFrame(recs)
-                    cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
-                    for col in cols:
-                        if col not in df_to_gs.columns: df_to_gs[col] = ""
-                    df_to_gs = df_to_gs[cols]
-                    conn.update(worksheet="History", data=df_to_gs)
-                    st.sidebar.success("✅ 強制同步成功！請檢查您的 Google 試算表。")
-                else:
-                    st.sidebar.warning("⚠️ 找不到本地歷史紀錄檔案。")
-            except Exception as e:
-                st.sidebar.error(f"❌ 同步失敗: {e}")
 
 st.title("📈 台股 SMC x Vegas 量化監控系統")
 st.markdown("針對台股前 150 大市值標的進行 SMC (Smart Money Concepts) 結構與 Vegas 通道分析，尋找高勝率伏擊點。")
@@ -320,39 +290,13 @@ with tab2:
 
     records = []
     
-    # 優先嘗試從 Google Sheets 讀取
-    if HAS_GSHEETS:
+    # 從本地 JSON 讀取
+    history_file = 'data/triggered_records.json'
+    if os.path.exists(history_file):
         try:
-            df_gs = conn.read(worksheet="History", usecols=list(range(9))) # 讀取前 9 個欄位
-            if not df_gs.empty:
-                # 過濾掉全是 NaN 的空列
-                df_gs = df_gs.dropna(how='all')
-                if not df_gs.empty:
-                    records = df_gs.to_dict('records')
-        except Exception as e:
-            st.warning(f"⚠️ 無法讀取 Google Sheets，將回退至本地檔案。錯誤: {e}")
-
-    # 若 GSheets 沒有資料或尚未設定，回退使用本地 JSON
-    if not records:
-        history_file = 'data/triggered_records.json'
-        if os.path.exists(history_file):
-            try:
-                with open(history_file, 'r', encoding='utf-8') as f:
-                    records = json.load(f)
-                    
-                # 【新增】初次同步邏輯：如果 Google Sheets 成功連線但是空的，自動將 JSON 資料寫入
-                if HAS_GSHEETS and records:
-                    try:
-                        df_to_gs = pd.DataFrame(records)
-                        cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
-                        for col in cols:
-                            if col not in df_to_gs.columns: df_to_gs[col] = ""
-                        df_to_gs = df_to_gs[cols]
-                        conn.update(worksheet="History", data=df_to_gs)
-                        st.sidebar.success("🔄 已自動將歷史紀錄同步至空白的 Google 試算表！")
-                    except Exception as sync_e:
-                        st.sidebar.error(f"初次同步失敗: {sync_e}")
-            except: pass
+            with open(history_file, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+        except: pass
 
     if records:
         raw_df = pd.DataFrame(records)
