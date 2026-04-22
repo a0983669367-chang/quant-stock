@@ -102,7 +102,6 @@ if st.sidebar.button("🔄 立即重新掃描全市場"):
 if st.sidebar.button("🛠️ 補全最近 7 日紀錄"):
     with st.spinner("⏳ 正在回溯掃描過去 7 天數據..."):
         try:
-            # 這裡我們調用修補函數
             changed = data_fetcher.repair_history(days=7)
             if changed:
                 st.sidebar.success("✅ 補全完成！已更新歷史紀錄。")
@@ -111,6 +110,28 @@ if st.sidebar.button("🛠️ 補全最近 7 日紀錄"):
                 st.sidebar.info("ℹ️ 過去 7 天無新觸發標的，或紀錄已是最新。")
         except Exception as e:
             st.sidebar.error(f"❌ 修補失敗: {e}")
+
+if st.sidebar.button("📤 強制同步至 Google 試算表"):
+    with st.spinner("⏳ 正在強制同步..."):
+        if not HAS_GSHEETS:
+            st.sidebar.error("❌ 尚未偵測到 Google Sheets 連線設定！請確認 Secrets 是否設定正確。")
+        else:
+            try:
+                history_file = 'data/triggered_records.json'
+                if os.path.exists(history_file):
+                    with open(history_file, 'r', encoding='utf-8') as f:
+                        recs = json.load(f)
+                    df_to_gs = pd.DataFrame(recs)
+                    cols = ['ticker', 'name', 'date', 'entry_price', 'target', 'stop_loss', 'is_conservative', 'rr_ratio', 'result']
+                    for col in cols:
+                        if col not in df_to_gs.columns: df_to_gs[col] = ""
+                    df_to_gs = df_to_gs[cols]
+                    conn.update(worksheet="History", data=df_to_gs)
+                    st.sidebar.success("✅ 強制同步成功！請檢查您的 Google 試算表。")
+                else:
+                    st.sidebar.warning("⚠️ 找不到本地歷史紀錄檔案。")
+            except Exception as e:
+                st.sidebar.error(f"❌ 同步失敗: {e}")
 
 st.title("📈 台股 SMC x Vegas 量化監控系統")
 st.markdown("針對台股前 150 大市值標的進行 SMC (Smart Money Concepts) 結構與 Vegas 通道分析，尋找高勝率伏擊點。")
