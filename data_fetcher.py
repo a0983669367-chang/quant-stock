@@ -322,19 +322,50 @@ def update_triggered_history(new_signals, repair=False):
             if key not in existing_keys:
                 new_record = {
                     "ticker": s['ticker'],
-                    "name": s['name'],
-                    "target": s['target1'],
+                    "date": s['date'],
+                    "entry_price": s['entry_price'],
+                    "target": s['target'],
                     "stop_loss": s['stop_loss'],
-                    "entry_price": s['latest_close']
-                })
-                new_count += 1
+                    "is_conservative": s['is_conservative'],
+                    "rr_ratio": s.get('rr_ratio', 0),
+                    "name": s.get('name', s['ticker']),
+                    "result": "⏳ 進行中"
+                }
+                records.append(new_record)
+                existing_keys.add(key)
+                updated = True
                 
-    if new_count > 0:
+    if updated:
         # 按日期降序排列
         records.sort(key=lambda x: x['date'], reverse=True)
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(records, f, ensure_ascii=False, indent=4)
-        print(f"新增了 {new_count} 筆成形紀錄到 {history_file}")
+        print(f"Updated triggered_records.json")
+    
+    return updated
+
+def repair_history(days=7):
+    """
+    修補過去 N 天的紀錄。
+    """
+    print(f"Repairing history for last {days} days...")
+    
+    end_date = datetime.datetime.now()
+    start_date = end_date - datetime.timedelta(days=days)
+    
+    all_new_triggered = []
+    
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(calculate_smc_and_vegas, t): t for t in UNIVERSE}
+        for future in concurrent.futures.as_completed(futures):
+            res = future.result()
+            if res and res.get('status') == 'Triggered':
+                all_new_triggered.append(res)
+    
+    if all_new_triggered:
+        return update_triggered_history(all_new_triggered, repair=True)
+    return False
 
 def run_analysis():
     print(f"[{datetime.datetime.now()}] Scanning {len(UNIVERSE)} Taiwan stocks...")
