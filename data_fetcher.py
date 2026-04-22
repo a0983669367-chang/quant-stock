@@ -324,8 +324,8 @@ def update_triggered_history(new_signals, repair=False):
                 new_record = {
                     "ticker": s['ticker'],
                     "date": s['date'],
-                    "entry_price": s['entry_price'],
-                    "target": s['target'],
+                    "entry_price": s.get('latest_close', 0),
+                    "target": s.get('target1', 0),
                     "stop_loss": s['stop_loss'],
                     "is_conservative": s['is_conservative'],
                     "rr_ratio": s.get('rr_ratio', 0),
