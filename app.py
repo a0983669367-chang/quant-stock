@@ -69,8 +69,10 @@ try:
     from streamlit_gsheets import GSheetsConnection
     conn = st.connection("gsheets", type=GSheetsConnection)
     HAS_GSHEETS = True
-except Exception:
+    GSHEETS_ERR = None
+except Exception as e:
     HAS_GSHEETS = False
+    GSHEETS_ERR = str(e)
 
 st.sidebar.info("📢 **數據延遲公告**：本系統報價串接自 Yahoo Finance 免費 API，台股行情通常有 **15 分鐘延遲**，請投資人留意，勿作為當沖即時依據。")
 
@@ -114,7 +116,7 @@ if st.sidebar.button("🛠️ 補全最近 7 日紀錄"):
 if st.sidebar.button("📤 強制同步至 Google 試算表"):
     with st.spinner("⏳ 正在強制同步..."):
         if not HAS_GSHEETS:
-            st.sidebar.error("❌ 尚未偵測到 Google Sheets 連線設定！請確認 Secrets 是否設定正確。")
+            st.sidebar.error(f"❌ 尚未偵測到 Google Sheets 連線設定！錯誤原因: {GSHEETS_ERR}")
         else:
             try:
                 history_file = 'data/triggered_records.json'
