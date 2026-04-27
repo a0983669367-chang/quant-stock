@@ -166,5 +166,286 @@
             "ema_slope": 1.0591697091951542,
             "is_conservative": false
         }
+    ],
+    "2026-04-27": [
+        {
+            "ticker": "6282.TW",
+            "name": "康舒",
+            "industry": "電力重電",
+            "market_cap": 39933755392.0,
+            "status": "Triggered",
+            "is_vegas_bullish": true,
+            "rsi": 60.941826205840144,
+            "vol_ratio": 0.4860245091632534,
+            "pe_ratio": 311.0,
+            "div_yield": 107.0,
+            "ob": [
+                44.900001525878906,
+                42.5
+            ],
+            "ob_date": "2026-04-07",
+            "fvg": [
+                49.650001525878906,
+                46.70000076293945
+            ],
+            "fvg_date": "2026-04-13",
+            "target1": 53.79999923706055,
+            "stop_loss": 41.65,
+            "entry_zone": "42.50 - 49.65",
+            "latest_close": 46.650001525878906,
+            "upside_pct": 0.15326897057474279,
+            "rr_ratio": 1.4299991058352335,
+            "ema_slope": 0.7988515373484757,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "3231.TW",
+            "name": "緯創",
+            "industry": "電腦硬體",
+            "market_cap": 453208702976.0,
+            "status": "Triggered",
+            "is_vegas_bullish": true,
+            "rsi": 75.67567567567568,
+            "vol_ratio": 0.6951983255052094,
+            "pe_ratio": 16.944115,
+            "div_yield": 268.0,
+            "ob": [
+                138.0,
+                132.0
+            ],
+            "ob_date": "2026-04-15",
+            "fvg": [
+                141.5,
+                137.0
+            ],
+            "fvg_date": "2026-04-17",
+            "target1": 161.0,
+            "stop_loss": 129.35999999999999,
+            "entry_zone": "132.00 - 141.50",
+            "latest_close": 142.5,
+            "upside_pct": 0.12982456140350876,
+            "rr_ratio": 1.407914764079146,
+            "ema_slope": 0.5056090790779917,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "2409.TW",
+            "name": "友達",
+            "industry": "電子零組件",
+            "market_cap": 130942173184.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 55.72916842583146,
+            "vol_ratio": 0.8259144392959019,
+            "pe_ratio": 19.277779,
+            "div_yield": 700.0,
+            "ob": [
+                14.75,
+                14.300000190734863
+            ],
+            "ob_date": "2026-03-27",
+            "fvg": [
+                14.949999809265137,
+                14.300000190734863
+            ],
+            "fvg_date": "2026-03-30",
+            "target1": 21.850000381469727,
+            "stop_loss": 14.014000186920166,
+            "entry_zone": "14.30 - 14.95",
+            "latest_close": 17.350000381469727,
+            "upside_pct": 0.25936598853370185,
+            "rr_ratio": 1.348920784642702,
+            "ema_slope": 1.5071783293963277,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "1519.TW",
+            "name": "華城",
+            "industry": "電力重電",
+            "market_cap": 280502304768.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 71.0204081632653,
+            "vol_ratio": 0.6686554944084657,
+            "pe_ratio": 63.42857,
+            "div_yield": 102.0,
+            "ob": [
+                839.0,
+                805.0
+            ],
+            "ob_date": "2026-04-09",
+            "fvg": [
+                823.0,
+                819.0
+            ],
+            "fvg_date": "2026-04-10",
+            "target1": 1115.0,
+            "stop_loss": 788.9,
+            "entry_zone": "805.00 - 839.00",
+            "latest_close": 888.0,
+            "upside_pct": 0.25563063063063063,
+            "rr_ratio": 2.2906155398587282,
+            "ema_slope": 0.8199048217454443,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "5347.TWO",
+            "name": "世界",
+            "industry": "半導體",
+            "market_cap": 266529751040.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 65.76576576576576,
+            "vol_ratio": 0.6672271083517729,
+            "pe_ratio": 32.81991,
+            "div_yield": 320.0,
+            "ob": [
+                118.5,
+                110.0
+            ],
+            "ob_date": "2026-04-02",
+            "fvg": [
+                125.5,
+                118.5
+            ],
+            "fvg_date": "2026-04-02",
+            "target1": 171.0,
+            "stop_loss": 107.8,
+            "entry_zone": "110.00 - 125.50",
+            "latest_close": 138.5,
+            "upside_pct": 0.23465703971119134,
+            "rr_ratio": 1.058631921824104,
+            "ema_slope": 1.641960143658753,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "2303.TW",
+            "name": "聯電",
+            "industry": "半導體",
+            "market_cap": 914458673152.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 70.80923928232997,
+            "vol_ratio": 0.816953158085023,
+            "pe_ratio": 21.963745,
+            "div_yield": 383.0,
+            "ob": [
+                57.79999923706055,
+                52.79999923706055
+            ],
+            "ob_date": "2026-04-02",
+            "fvg": [
+                59.5,
+                57.79999923706055
+            ],
+            "fvg_date": "2026-04-02",
+            "target1": 80.19999694824219,
+            "stop_loss": 51.743999252319334,
+            "entry_zone": "52.80 - 59.50",
+            "latest_close": 72.69999694824219,
+            "upside_pct": 0.10316369071293809,
+            "rr_ratio": 0.35789276696948585,
+            "ema_slope": 2.457304683560942,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "2882.TW",
+            "name": "國泰金",
+            "industry": "人壽保險",
+            "market_cap": 1092856119296.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 62.999982452405966,
+            "vol_ratio": 0.9209717970151544,
+            "pe_ratio": 10.552408,
+            "div_yield": 467.0,
+            "ob": [
+                71.80000305175781,
+                70.69999694824219
+            ],
+            "ob_date": "2026-03-26",
+            "fvg": [
+                71.0999984741211,
+                70.9000015258789
+            ],
+            "fvg_date": "2026-03-30",
+            "target1": 81.5999984741211,
+            "stop_loss": 69.28599700927734,
+            "entry_zone": "70.70 - 71.80",
+            "latest_close": 74.5,
+            "upside_pct": 0.09530199294122274,
+            "rr_ratio": 1.3617173766018558,
+            "ema_slope": 0.41194484404610693,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "6239.TW",
+            "name": "力成",
+            "industry": "半導體",
+            "market_cap": 160318947328.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 66.02564102564102,
+            "vol_ratio": 1.117073099795062,
+            "pe_ratio": 29.127518,
+            "div_yield": 333.0,
+            "ob": [
+                196.0,
+                185.5
+            ],
+            "ob_date": "2026-03-31",
+            "fvg": [
+                197.5,
+                196.0
+            ],
+            "fvg_date": "2026-03-31",
+            "target1": 237.5,
+            "stop_loss": 181.79,
+            "entry_zone": "185.50 - 197.50",
+            "latest_close": 217.0,
+            "upside_pct": 0.0944700460829493,
+            "rr_ratio": 0.5822209599545582,
+            "ema_slope": 0.7511041180274811,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        },
+        {
+            "ticker": "2379.TW",
+            "name": "瑞昱",
+            "industry": "半導體",
+            "market_cap": 286109171712.0,
+            "status": "Potential",
+            "is_vegas_bullish": true,
+            "rsi": 70.0,
+            "vol_ratio": 0.7047049070825124,
+            "pe_ratio": 19.764957,
+            "div_yield": 473.00000000000006,
+            "ob": [
+                516.0,
+                506.0
+            ],
+            "ob_date": "2026-04-10",
+            "fvg": [
+                530.0,
+                527.0
+            ],
+            "fvg_date": "2026-04-14",
+            "target1": 592.0,
+            "stop_loss": 495.88,
+            "entry_zone": "506.00 - 530.00",
+            "latest_close": 555.0,
+            "upside_pct": 0.06666666666666667,
+            "rr_ratio": 0.6258457374830853,
+            "ema_slope": 0.6321032002617111,
+            "is_conservative": false,
+            "date": "2026-04-27"
+        }
     ]
 }
